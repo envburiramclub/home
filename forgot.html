@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ลืมรหัสผ่าน | ชมรมอนามัยสิ่งแวดล้อมจังหวัดบุรีรัมย์</title>
+<link rel="stylesheet" href="assets/css/fonts.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/img/favicon-180.png">
+</head>
+<body>
+<header id="site-header"></header>
+<main id="main">
+  <div class="wrap wrap-narrow">
+    <h1>ลืมรหัสผ่าน</h1>
+    <p class="muted small">กรอกอีเมลที่ใช้สมัคร ระบบจะส่งลิงก์ตั้งรหัสผ่านใหม่ไปให้</p>
+    <div class="card">
+      <form id="f" novalidate>
+        <div class="field mb-2">
+          <label class="req" for="email">อีเมล</label>
+          <input type="email" id="email" autocomplete="email" required>
+        </div>
+        <div class="btn-row mt-2">
+          <button class="btn btn-lg" type="submit" id="btn">ส่งลิงก์ตั้งรหัสผ่านใหม่</button>
+          <a class="btn btn-ghost" href="login.html">กลับหน้าเข้าสู่ระบบ</a>
+        </div>
+      </form>
+      <div id="ok" class="alert alert-ok mt-2" hidden>
+        <div><strong>ส่งอีเมลแล้ว</strong>กรุณาเปิดอีเมลและกดลิงก์เพื่อตั้งรหัสผ่านใหม่</div>
+      </div>
+    </div>
+  </div>
+</main>
+<footer id="site-footer"></footer>
+<script src="assets/vendor/supabase.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  "use strict";
+  var A = window.App;
+  A.renderHeader("public");
+  A.renderFooter();
+
+  A.$("#f").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var btn = A.$("#btn");
+    var email = A.$("#email").value.trim().toLowerCase();
+    if (!email) { A.toast("กรุณากรอกอีเมล", "warn"); return; }
+    A.busy(btn, true, "กำลังส่ง...");
+    var redirect = location.href.replace(/forgot\.html.*$/, "reset.html");
+    A.sb.auth.resetPasswordForEmail(email, { redirectTo: redirect })
+      .then(function (res) {
+        if (res.error) throw res.error;
+        A.$("#f").hidden = true;
+        A.$("#ok").hidden = false;
+      })
+      .catch(function (err) {
+        A.busy(btn, false);
+        A.toast(A.errMsg(err), "err");
+      });
+  });
+})();
+</script>
+</body>
+</html>

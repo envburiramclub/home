@@ -1,0 +1,62 @@
+name: Deploy static site to GitHub Pages
+
+# ระบบนี้เป็น HTML/CSS/JavaScript ล้วน ไม่ต้องผ่าน Jekyll
+# จึงอัปโหลดไฟล์ขึ้น GitHub Pages ตรง ๆ เพื่อไม่ให้ Liquid ของ Jekyll
+# ไปแปลความหมายในไฟล์ JavaScript และไม่ให้ Jekyll ตัดโฟลเดอร์บางชื่อออก
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Stage site files
+        run: |
+          mkdir -p _site
+          # คัดลอกเฉพาะไฟล์ที่ต้องใช้ตอนรันเว็บ
+          # ไม่นำไฟล์ของ CI และไฟล์ลายเซ็นบุคคลขึ้นเว็บ
+          # ส่วนเอกสาร ไฟล์ SQL และไฟล์ทดสอบ อยู่คลัง envburiramclub/docs ไม่ได้อยู่ที่นี่
+          rsync -a \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude '_site/' \
+            --exclude 'assets/img/signatures/' \
+            ./ _site/
+          # บอก GitHub Pages ว่าไม่ต้องประมวลผลด้วย Jekyll
+          touch _site/.nojekyll
+          echo "ไฟล์ที่จะขึ้นเว็บ:"
+          find _site -type f | wc -l
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

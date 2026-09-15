@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>เข้าสู่ระบบ | ชมรมอนามัยสิ่งแวดล้อมจังหวัดบุรีรัมย์</title>
+<link rel="stylesheet" href="assets/css/fonts.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/img/favicon-180.png">
+</head>
+<body>
+<a class="skip-link" href="#main">ข้ามไปเนื้อหาหลัก</a>
+<header id="site-header"></header>
+
+<main id="main">
+  <div class="wrap wrap-narrow">
+    <h1>เข้าสู่ระบบ</h1>
+
+    <div class="card">
+      <form id="login-form" novalidate>
+        <div class="field mb-2">
+          <label class="req" for="email">อีเมล</label>
+          <input type="email" id="email" autocomplete="username" required>
+        </div>
+        <div class="field mb-2">
+          <label class="req" for="pw">รหัสผ่าน</label>
+          <input type="password" id="pw" autocomplete="current-password" required>
+        </div>
+        <div class="btn-row mt-3">
+          <button class="btn btn-lg" type="submit" id="btn-login">เข้าสู่ระบบ</button>
+          <a class="btn btn-ghost" href="register.html">ยังไม่มีบัญชี สมัครใช้งาน</a>
+        </div>
+        <p class="small mt-2 mb-0">
+          <a href="forgot.html">ลืมรหัสผ่าน?</a>
+          &nbsp;·&nbsp;
+          <a href="#" id="resend">ขออีเมลยืนยันอีกครั้ง</a>
+        </p>
+      </form>
+    </div>
+
+    <div class="card card-tight">
+      <p class="small muted mb-0">
+        ผู้ดูแลระบบเข้าใช้งานที่ <a href="admin/index.html">หน้าเข้าสู่ระบบผู้ดูแล</a>
+      </p>
+    </div>
+  </div>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/vendor/supabase.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  "use strict";
+  var A = window.App;
+  A.renderHeader("public");
+  A.renderFooter();
+
+  var params = new URLSearchParams(location.search);
+  var next = params.get("next") || "app.html";
+  // กัน open redirect: อนุญาตเฉพาะ path ภายในระบบ
+  if (/^(https?:)?\/\//.test(next) || next.charAt(0) === "/") next = "app.html";
+
+  A.auth.session().then(function (s) {
+    if (s) location.replace(next);
+  });
+
+  A.$("#login-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var btn = A.$("#btn-login");
+    var email = A.$("#email").value.trim().toLowerCase();
+    var pass = A.$("#pw").value;
+    if (!email || !pass) { A.toast("กรุณากรอกอีเมลและรหัสผ่าน", "warn"); return; }
+
+    A.busy(btn, true, "กำลังเข้าสู่ระบบ...");
+    A.sb.auth
+      .signInWithPassword({ email: email, password: pass })
+      .then(function (res) {
+        if (res.error) throw res.error;
+        return A.rpc("log_client_event", { p_action: "login" }).catch(function () {});
+      })
+      .then(function () {
+        location.href = next;
+      })
+      .catch(function (err) {
+        A.busy(btn, false);
+        A.toast(A.errMsg(err), "err");
+      });
+  });
+
+  A.$("#resend").addEventListener("click", function (e) {
+    e.preventDefault();
+    var email = A.$("#email").value.trim().toLowerCase();
+    if (!email) { A.toast("กรุณากรอกอีเมลก่อน", "warn"); return; }
+    A.sb.auth
+      .resend({ type: "signup", email: email })
+      .then(function (res) {
+        if (res.error) throw res.error;
+        A.toast("ส่งอีเมลยืนยันไปที่ " + email + " แล้ว", "ok");
+      })
+      .catch(function (err) { A.toast(A.errMsg(err), "err"); });
+  });
+})();
+</script>
+</body>
+</html>

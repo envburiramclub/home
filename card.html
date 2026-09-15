@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>บัตรสมาชิก | ชมรมอนามัยสิ่งแวดล้อมจังหวัดบุรีรัมย์</title>
+<link rel="stylesheet" href="assets/css/fonts.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/img/favicon-180.png">
+<style>
+  .preview { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+  .card-frame {
+    background: #fff; border: 1px solid var(--c-line); border-radius: 10px;
+    box-shadow: var(--shadow-2); overflow: hidden;
+  }
+  .card-frame canvas, .card-frame img { display: block; width: 100%; height: auto; }
+  .card-frame .cap {
+    font-size: .8rem; color: var(--c-ink-3); padding: 7px 11px;
+    border-top: 1px solid var(--c-line-2); background: #fafcfc;
+  }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">ข้ามไปเนื้อหาหลัก</a>
+<header id="site-header"></header>
+
+<main id="main">
+  <div class="wrap wrap-mid">
+    <h1>บัตรสมาชิก</h1>
+
+    <div id="loading" class="loading">กำลังเตรียมบัตรสมาชิก...</div>
+
+    <div id="no-card" hidden>
+      <div class="alert alert-warn">
+        <div>
+          <strong>ยังไม่มีบัตรสมาชิกที่ใช้งานได้</strong>
+          <span id="no-card-why"></span>
+        </div>
+      </div>
+      <a class="btn" href="app.html">กลับหน้าสถานะการสมัคร</a>
+    </div>
+
+    <div id="content" hidden>
+      <div class="card">
+        <div class="card-head">
+          <h2 id="c-name">-</h2>
+          <span id="c-badge"></span>
+        </div>
+        <dl class="dl">
+          <dt>เลขที่บัตร</dt><dd id="c-no">-</dd>
+          <dt>รหัสสมาชิก</dt><dd id="c-member">-</dd>
+          <dt>วันที่ออกบัตร</dt><dd id="c-issued">-</dd>
+          <dt>บัตรมีอายุ</dt><dd id="c-valid">-</dd>
+          <dt>รหัสตรวจสอบ (หลังบัตร)</dt><dd id="c-token" class="mono small">-</dd>
+        </dl>
+      </div>
+
+      <div class="card">
+        <h2>ตัวอย่างบัตร</h2>
+        <p class="small muted">
+          ภาพตัวอย่างนี้สร้างจากไฟล์ PDF จริง สิ่งที่เห็นคือสิ่งที่จะได้เมื่อพิมพ์
+        </p>
+        <div class="preview">
+          <div class="card-frame">
+            <div id="prev-front"></div>
+            <div class="cap">ด้านหน้า</div>
+          </div>
+          <div class="card-frame">
+            <div id="prev-back"></div>
+            <div class="cap">ด้านหลัง (มี QR ตรวจสอบสมาชิก)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>พิมพ์บัตร</h2>
+
+        <!--
+          รูปถ่ายเป็นข้อบังคับของการออกบัตร ไม่ใช่ของการสมัคร
+          ถ้ายังไม่มีรูป ระบบจะไม่สร้างไฟล์ PDF ให้ และปิดปุ่มทั้งสองไว้
+          ข้อความนี้ขึ้นแทน เพื่อให้สมาชิกรู้ว่าต้องทำอะไรต่อ
+        -->
+        <div class="alert alert-warn" id="photo-warn" hidden>
+          <div>
+            <strong>ยังออกบัตรสมาชิกให้ไม่ได้ เพราะยังไม่ได้แนบรูปถ่าย</strong>
+            รูปถ่ายต้องพิมพ์ลงบนบัตรสมาชิก จึงต้องมีก่อนจึงจะพิมพ์บัตรได้
+            กรุณาแนบรูปถ่ายหน้าตรงที่
+            <a href="apply.html">หน้าข้อมูลสมาชิก</a>
+            แล้วกลับมาที่หน้านี้อีกครั้ง
+            <span class="small">หากแนบรูปแล้วยังพิมพ์บัตรไม่ได้
+            กรุณาแจ้งเจ้าหน้าที่ทะเบียนของชมรม</span>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-lg" id="btn-card">
+            ดาวน์โหลด PDF ขนาดบัตรจริง (85.6 × 54 มม.)
+          </button>
+          <button class="btn btn-lg btn-ghost" id="btn-a4">
+            ดาวน์โหลด PDF บนกระดาษ A4 (มีรอยตัด)
+          </button>
+        </div>
+        <p class="hint mt-2 mb-0">
+          แบบขนาดบัตรจริงเหมาะกับเครื่องพิมพ์บัตร PVC ·
+          แบบ A4 เหมาะกับการพิมพ์เองแล้วตัด โดยตั้งค่าการพิมพ์ที่ 100% ไม่ย่อไม่ขยาย
+        </p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/vendor/supabase.js"></script>
+<script src="assets/vendor/jspdf.umd.min.js"></script>
+<script src="assets/vendor/sarabun-normal.js"></script>
+<script src="assets/vendor/sarabun-bold.js"></script>
+<script src="assets/vendor/qrcode.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/lib/qr.js"></script>
+<script src="assets/js/lib/card-pdf.js"></script>
+<script src="assets/js/pages/card.js"></script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ตั้งรหัสผ่านใหม่ | ชมรมอนามัยสิ่งแวดล้อมจังหวัดบุรีรัมย์</title>
+<link rel="stylesheet" href="assets/css/fonts.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/img/favicon-180.png">
+</head>
+<body>
+<header id="site-header"></header>
+<main id="main">
+  <div class="wrap wrap-narrow">
+    <h1>ตั้งรหัสผ่านใหม่</h1>
+
+    <div id="checking" class="loading">กำลังตรวจสอบลิงก์...</div>
+
+    <div id="need-link" class="alert alert-warn" hidden>
+      <div>
+        <strong>ไม่พบลิงก์ตั้งรหัสผ่านที่ใช้งานได้</strong>
+        กรุณาเปิดหน้านี้จากลิงก์ในอีเมลที่ระบบส่งให้ หรือ
+        <a href="forgot.html">ขอลิงก์ใหม่</a>
+      </div>
+    </div>
+
+    <div class="card" id="box" hidden>
+      <form id="f" novalidate>
+        <div class="field mb-2">
+          <label class="req" for="pw">รหัสผ่านใหม่</label>
+          <input type="password" id="pw" autocomplete="new-password" required minlength="8">
+          <div class="hint">อย่างน้อย 8 ตัวอักษร</div>
+        </div>
+        <div class="field mb-2">
+          <label class="req" for="pw2">ยืนยันรหัสผ่านใหม่</label>
+          <input type="password" id="pw2" autocomplete="new-password" required>
+          <div class="err-text" id="pw-err" hidden>รหัสผ่านทั้งสองช่องไม่ตรงกัน</div>
+        </div>
+        <div class="btn-row mt-2">
+          <button class="btn btn-lg" type="submit" id="btn">บันทึกรหัสผ่านใหม่</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</main>
+<footer id="site-footer"></footer>
+<script src="assets/vendor/supabase.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  "use strict";
+  var A = window.App;
+  A.renderHeader("public");
+  A.renderFooter();
+
+  /*
+   * supabase-js อ่าน token จาก URL ให้เอง (detectSessionInUrl) แต่การแลก token
+   * ต้องยิงไปที่เซิร์ฟเวอร์ก่อน จึงใช้เวลาไม่แน่นอน บนเน็ตมือถือในพื้นที่อาจหลายวินาที
+   *
+   * ของเดิมตัดสินครั้งเดียวที่ 700 มิลลิวินาที ถ้าเน็ตช้ากว่านั้นจะขึ้นว่า
+   * "ไม่พบลิงก์ตั้งรหัสผ่านที่ใช้งานได้" ทั้งที่ลิงก์ใช้ได้และกำลังแลก token อยู่
+   * แล้วพอ session มาถึงก็ไม่ได้ซ่อนคำเตือนนั้น ผู้ใช้จึงเห็นทั้งฟอร์ม
+   * และคำเตือนว่าลิงก์ใช้ไม่ได้พร้อมกัน ซึ่งทำให้เข้าใจผิดและเลิกกลางคัน
+   *
+   * แก้เป็นรอจนกว่าจะได้ session จริง สูงสุดประมาณ 10 วินาที
+   * และให้สถานะจบได้ครั้งเดียว จะไม่มีทางแสดงฟอร์มคู่กับคำเตือน
+   */
+  var settled = false;
+
+  function showForm() {
+    if (settled) return;
+    settled = true;
+    A.$("#checking").hidden = true;
+    A.$("#need-link").hidden = true;
+    A.$("#box").hidden = false;
+  }
+
+  function showNeedLink() {
+    if (settled) return;
+    settled = true;
+    A.$("#checking").hidden = true;
+    A.$("#box").hidden = true;
+    A.$("#need-link").hidden = false;
+  }
+
+  A.sb.auth.onAuthStateChange(function (evt) {
+    if (evt === "PASSWORD_RECOVERY" || evt === "SIGNED_IN") showForm();
+  });
+
+  var tries = 0;
+  (function waitForSession() {
+    if (settled) return;
+    A.auth.session().then(function (s) {
+      if (s) return showForm();
+      if (++tries >= 20) return showNeedLink();
+      setTimeout(waitForSession, 500);
+    }).catch(function () {
+      if (++tries >= 20) return showNeedLink();
+      setTimeout(waitForSession, 500);
+    });
+  })();
+
+  A.$("#f").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var btn = A.$("#btn");
+    var p1 = A.$("#pw").value, p2 = A.$("#pw2").value;
+    if (p1.length < 8) { A.toast("รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร", "warn"); return; }
+    if (p1 !== p2) { A.$("#pw-err").hidden = false; return; }
+    A.$("#pw-err").hidden = true;
+
+    A.busy(btn, true, "กำลังบันทึก...");
+    A.sb.auth.updateUser({ password: p1 })
+      .then(function (res) {
+        if (res.error) throw res.error;
+        A.toast("ตั้งรหัสผ่านใหม่สำเร็จ", "ok");
+        setTimeout(function () { location.href = "app.html"; }, 1100);
+      })
+      .catch(function (err) {
+        A.busy(btn, false);
+        A.toast(A.errMsg(err), "err");
+      });
+  });
+})();
+</script></body></html>

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ตรวจสลิป | ระบบผู้ดูแล</title>
+<link rel="stylesheet" href="../assets/css/fonts.css">
+<link rel="stylesheet" href="../assets/css/base.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/img/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="../assets/img/favicon-180.png">
+<style>
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; border-bottom: 2px solid var(--c-line); }
+  .tabs button {
+    font: inherit; font-size: .93rem; font-weight: 600; background: transparent; border: 0;
+    padding: 9px 15px; cursor: pointer; color: var(--c-ink-3);
+    border-bottom: 3px solid transparent; margin-bottom: -2px;
+  }
+  .tabs button.on { color: var(--c-brand-800); border-bottom-color: var(--c-brand-700); }
+  .tabs button .c {
+    display: inline-block; min-width: 19px; padding: 0 5px; margin-left: 5px;
+    background: var(--c-brand-100); color: var(--c-brand-800);
+    border-radius: 999px; font-size: .76rem;
+  }
+  .slip-view { display: grid; grid-template-columns: 1fr 260px; gap: 18px; align-items: start; }
+  .slip-img {
+    width: 100%; border: 1px solid var(--c-line); border-radius: var(--radius-sm);
+    background: #fafcfc; min-height: 180px; object-fit: contain; display: block;
+  }
+  .check-list { list-style: none; margin: 0; padding: 0; font-size: .86rem; }
+  .check-list li { display: flex; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--c-line-2); }
+  .check-list li:last-child { border-bottom: 0; }
+  .ck { flex: 0 0 18px; font-weight: 700; text-align: center; }
+  .ck.p { color: var(--c-ok-700); } .ck.f { color: var(--c-err-700); } .ck.n { color: var(--c-ink-3); }
+  @media (max-width: 860px) { .slip-view { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">ข้ามไปเนื้อหาหลัก</a>
+<header id="site-header"></header>
+
+<main id="main">
+  <div class="wrap">
+    <h1>ตรวจสลิปการโอนเงิน</h1>
+
+    <div class="tabs" id="tabs">
+      <button data-tab="pending" class="on">สลิปรอตรวจสอบ<span class="c" id="c-pending">0</span></button>
+      <button data-tab="verified">ตรวจผ่านแล้ว รอทะเบียนอนุมัติ</button>
+      <button data-tab="all">รายการทั้งหมด</button>
+    </div>
+
+    <p class="hint">
+      การอนุมัติใบสมัครและการออกบัตรสมาชิกเป็นงานของเจ้าหน้าที่ทะเบียน
+      อยู่ที่เมนู <b>ตรวจใบสมัคร</b> แยกจากหน้านี้
+    </p>
+
+    <div id="loading" class="loading">กำลังโหลดข้อมูล...</div>
+    <div id="list"></div>
+  </div>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="../assets/vendor/supabase.js"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/lib/admin-review.js"></script>
+<script src="../assets/js/pages/admin-payments.js"></script>
+</body>
+</html>

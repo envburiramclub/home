@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ตรวจสอบบัตรสมาชิก | ชมรมอนามัยสิ่งแวดล้อมจังหวัดบุรีรัมย์</title>
+<meta name="description" content="ตรวจสอบความถูกต้องของบัตรสมาชิกชมรมอนามัยสิ่งแวดล้อมจังหวัดบุรีรัมย์">
+<link rel="stylesheet" href="assets/css/fonts.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/img/favicon-180.png">
+<style>
+  .verdict { border-radius: var(--radius); padding: 22px; text-align: center; margin-bottom: 20px; }
+  .verdict .mark { font-size: 2.6rem; line-height: 1; }
+  .verdict h2 { margin: 8px 0 4px; }
+  .v-ok { background: var(--c-ok-100); border: 1px solid #a7f3c4; }
+  .v-ok h2, .v-ok .mark { color: #14532d; }
+  .v-bad { background: var(--c-err-100); border: 1px solid #fecaca; }
+  .v-bad h2, .v-bad .mark { color: #7f1d1d; }
+  .v-warn { background: var(--c-warn-100); border: 1px solid #fde68a; }
+  .v-warn h2, .v-warn .mark { color: #713f12; }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">ข้ามไปเนื้อหาหลัก</a>
+<header id="site-header"></header>
+
+<main id="main">
+  <div class="wrap wrap-narrow">
+    <h1>ตรวจสอบบัตรสมาชิก</h1>
+
+    <div class="card card-tight no-print">
+      <form id="f" class="btn-row" style="gap:8px">
+        <input type="text" id="token" placeholder="รหัสตรวจสอบหลังบัตรสมาชิก"
+               style="flex:1 1 200px" autocomplete="off">
+        <button class="btn" type="submit">ตรวจสอบ</button>
+      </form>
+      <p class="hint mt-1 mb-0">
+        สแกน QR ด้านหลังบัตรจะเปิดหน้านี้พร้อมรหัสให้อัตโนมัติ
+      </p>
+    </div>
+
+    <div id="loading" class="loading" hidden>กำลังตรวจสอบ...</div>
+    <div id="result" hidden></div>
+
+    <div class="card card-tight no-print">
+      <p class="tiny muted mb-0">
+        หน้านี้แสดงเฉพาะข้อมูลที่จำเป็นต่อการยืนยันสถานะสมาชิก
+        (ชื่อ-นามสกุล ตำแหน่ง หน่วยงาน และช่วงอายุบัตร)
+        ไม่มีการเปิดเผยเลขประจำตัวประชาชน ที่อยู่ หรือเบอร์โทรศัพท์
+        ตามหลักการเก็บข้อมูลเท่าที่จำเป็นในพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562
+      </p>
+    </div>
+  </div>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/vendor/supabase.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  "use strict";
+  var A = window.App;
+  A.renderHeader("public");
+  A.renderFooter();
+
+  var params = new URLSearchParams(location.search);
+  var t = (params.get("t") || params.get("token") || "").trim();
+  if (t) {
+    A.$("#token").value = t;
+    check(t);
+  }
+
+  A.$("#f").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var v = A.$("#token").value.trim();
+    if (!v) { A.toast("กรุณากรอกรหัสตรวจสอบ", "warn"); return; }
+    history.replaceState(null, "", "verify.html?t=" + encodeURIComponent(v));
+    check(v);
+  });
+
+  function check(token) {
+    A.$("#loading").hidden = false;
+    A.$("#result").hidden = true;
+
+    A.rpc("verify_card", { p_token: token })
+      .then(function (r) {
+        A.$("#loading").hidden = true;
+        A.$("#result").hidden = false;
+        A.$("#result").innerHTML = r && r.found ? found(r) : notFound(r);
+      })
+      .catch(function (e) {
+        A.$("#loading").hidden = true;
+        A.$("#result").hidden = false;
+        A.$("#result").innerHTML =
+          '<div class="verdict v-bad"><div class="mark">!</div>' +
+          "<h2>ตรวจสอบไม่สำเร็จ</h2><p>" + A.esc(A.errMsg(e)) + "</p></div>";
+      });
+  }
+
+  function notFound(r) {
+    return (
+      '<div class="verdict v-bad"><div class="mark">✕</div>' +
+      "<h2>ไม่พบบัตรสมาชิก</h2>" +
+      "<p>" + A.esc((r && r.reason) || "ไม่พบบัตรที่ตรงกับรหัสตรวจสอบนี้") + "</p>" +
+      '<p class="small">หากท่านสแกนจากบัตรจริง กรุณาตรวจสอบว่ารหัสครบถ้วน ' +
+      "หรือติดต่อชมรมเพื่อยืนยันสถานะสมาชิก</p></div>"
+    );
+  }
+
+  function found(r) {
+    var cls, mark, head, note;
+
+    if (r.is_valid) {
+      cls = "v-ok"; mark = "✓";
+      head = "บัตรสมาชิกถูกต้องและยังใช้งานได้";
+      note = "ตรวจสอบเมื่อ " + A.fmt.thaiDateTime(r.checked_at);
+    } else if (r.card_status === "revoked" || r.member_status === "revoked") {
+      cls = "v-bad"; mark = "✕";
+      head = "บัตรนี้ถูกยกเลิกแล้ว";
+      note = "กรุณาติดต่อชมรมเพื่อสอบถามรายละเอียด";
+    } else if (r.card_status === "replaced") {
+      cls = "v-warn"; mark = "!";
+      head = "บัตรนี้ถูกแทนที่ด้วยบัตรใบใหม่แล้ว";
+      note = "กรุณาตรวจสอบจากบัตรใบล่าสุดของสมาชิก";
+    } else {
+      cls = "v-warn"; mark = "!";
+      head = "บัตรหมดอายุแล้ว";
+      note = "หมดอายุเมื่อวันที่ " + A.fmt.thaiDate(r.valid_to);
+    }
+
+    return (
+      '<div class="verdict ' + cls + '"><div class="mark">' + mark + "</div>" +
+      "<h2>" + A.esc(head) + "</h2>" +
+      '<p class="small mb-0">' + A.esc(note) + "</p></div>" +
+      '<div class="card"><h3>ข้อมูลสมาชิก</h3><dl class="dl">' +
+      row("ชื่อ-นามสกุล", r.full_name) +
+      row("รหัสสมาชิก", r.member_code) +
+      row("ตำแหน่ง", r.position_name) +
+      row("หน่วยงาน", r.org_name) +
+      row("เลขที่บัตร", r.card_no) +
+      row("วันที่ออกบัตร", A.fmt.thaiDate(r.issued_at)) +
+      row("บัตรมีอายุ", A.fmt.thaiDate(r.valid_from) + " ถึง " + A.fmt.thaiDate(r.valid_to)) +
+      row("สถานะสมาชิก", (A.MEMBER_STATUS[r.member_status] || {}).label || r.member_status) +
+      "</dl></div>"
+    );
+  }
+
+  function row(k, v) {
+    return "<dt>" + A.esc(k) + "</dt><dd>" + A.esc(v || "-") + "</dd>";
+  }
+})();
+</script>
+</body>
+</html>

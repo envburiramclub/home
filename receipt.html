@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ใบสำคัญรับเงิน | ชมรมอนามัยสิ่งแวดล้อมจังหวัดบุรีรัมย์</title>
+<link rel="stylesheet" href="assets/css/fonts.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/img/favicon-180.png">
+</head>
+<body>
+<a class="skip-link" href="#main">ข้ามไปเนื้อหาหลัก</a>
+<header id="site-header"></header>
+
+<main id="main">
+  <div class="wrap wrap-mid">
+    <h1>ใบสำคัญรับเงิน</h1>
+
+    <div id="loading" class="loading">กำลังโหลดข้อมูล...</div>
+
+    <div id="none" hidden>
+      <div class="alert alert-info">
+        <div>
+          <strong>ยังไม่มีใบสำคัญรับเงิน</strong>
+          <span id="none-why"></span>
+        </div>
+      </div>
+      <a class="btn" href="app.html">กลับหน้าสถานะการสมัคร</a>
+    </div>
+
+    <div id="content" hidden>
+      <div class="card">
+        <div class="card-head">
+          <h2>รายละเอียด</h2>
+          <span class="badge badge-ok">ออกใบสำคัญรับเงินแล้ว</span>
+        </div>
+        <dl class="dl">
+          <dt>เลขที่</dt><dd id="r-no">-</dd>
+          <dt>วันที่ออก</dt><dd id="r-date">-</dd>
+          <dt>ได้รับเงินจาก</dt><dd id="r-payer">-</dd>
+          <dt>รายการ</dt><dd id="r-purpose">-</dd>
+          <dt>จำนวนเงิน</dt><dd id="r-amount">-</dd>
+          <dt>จำนวนเงินเป็นตัวอักษร</dt><dd id="r-amount-text">-</dd>
+          <dt>ธนาคารที่โอน</dt><dd id="r-bank">-</dd>
+          <dt>เลขที่อ้างอิงรายการ</dt><dd id="r-ref">-</dd>
+        </dl>
+      </div>
+
+      <div class="card">
+        <h2>พิมพ์เอกสาร</h2>
+        <!--
+          ที่อยู่ที่จะพิมพ์ลงใบสำคัญรับเงิน เลือกได้ 3 แบบ
+          ตัวเลือกที่ไม่มีข้อมูลจะถูกปิดไว้ และบอกเหตุใต้รายการ
+          ใบสำคัญรับเงินออกให้ได้ทุกกรณี แบบไม่ใส่ที่อยู่จึงใช้ได้เสมอ
+        -->
+        <div class="field mb-2" id="addr-choice">
+          <div class="label">ที่อยู่ที่จะพิมพ์ลงในเอกสาร</div>
+          <div class="radio-row">
+            <label><input type="radio" name="addrmode" value="work" id="am-work">
+              ชื่อหน่วยงานและที่อยู่ที่ตั้งหน่วยงาน</label>
+            <label><input type="radio" name="addrmode" value="home" id="am-home">
+              ที่อยู่ที่ติดต่อได้</label>
+            <label><input type="radio" name="addrmode" value="none" id="am-none">
+              ไม่ใส่ข้อมูลที่อยู่</label>
+          </div>
+          <div class="hint mt-1" id="am-hint"></div>
+          <div class="hint mt-1" id="am-preview"></div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-lg" id="btn-pdf">ดาวน์โหลดใบสำคัญรับเงิน (PDF)</button>
+          <button class="btn btn-ghost" id="btn-pdf-copy">ดาวน์โหลดฉบับสำเนา (PDF)</button>
+        </div>
+        <p class="hint mt-2 mb-0">
+          เอกสารเป็นกระดาษ A4 พิมพ์ได้ทันที หากต้องการฉบับที่มีลายมือชื่อเจ้าหน้าที่
+          กรุณาติดต่อเจ้าหน้าที่การเงินของชมรม
+        </p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/vendor/supabase.js"></script>
+<script src="assets/vendor/jspdf.umd.min.js"></script>
+<script src="assets/vendor/sarabun-normal.js"></script>
+<script src="assets/vendor/sarabun-bold.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/lib/receipt-pdf.js"></script>
+<script>
+(function () {
+  "use strict";
+  var A = window.App;
+  var st = null;
+
+  A.renderHeader("member", "receipt.html");
+  A.renderFooter();
+
+  A.auth.requireLogin()
+    .then(function (s) {
+      if (!s) return null;
+      return Promise.all([A.loadSettings(), A.rpc("get_my_status")]);
+    })
+    .then(function (r) {
+      if (!r) return;
+      st = r[1];
+      A.$("#loading").hidden = true;
+
+      if (!st.has_member || !st.receipt) {
+        A.$("#none").hidden = false;
+        A.$("#none-why").textContent = !st.has_member
+          ? "ท่านยังไม่ได้กรอกใบสมัครสมาชิก"
+          : "ระบบจะออกใบสำคัญรับเงินให้อัตโนมัติเมื่อเจ้าหน้าที่ตรวจสอบสลิปการโอนเงินผ่านแล้ว";
+        return;
+      }
+
+      var rc = st.receipt, pay = st.payment || {};
+      A.$("#r-no").textContent = rc.receipt_no;
+      A.$("#r-date").textContent = A.fmt.thaiDate(rc.issued_at);
+      A.$("#r-payer").textContent = rc.payer_name || "-";
+      A.$("#r-purpose").textContent = rc.purpose || "-";
+      A.$("#r-amount").textContent = A.fmt.money(rc.amount) + " บาท";
+      A.$("#r-amount-text").textContent = "(" + (rc.amount_text || "-") + ")";
+      A.$("#r-bank").textContent = pay.bank_name || "-";
+      A.$("#r-ref").textContent = pay.ref_no || "-";
+
+      A.$("#content").hidden = false;
+
+      wireAddrChoice();
+
+      A.$("#btn-pdf").addEventListener("click", function () { pdf(this, null); });
+      A.$("#btn-pdf-copy").addEventListener("click", function () { pdf(this, "สำเนา / COPY"); });
+    })
+    .catch(function (e) {
+      A.$("#loading").hidden = true;
+      A.toast(A.errMsg(e), "err");
+    });
+
+  /*
+   * ประกอบที่อยู่ผู้ชำระเงินตามแบบที่เลือก
+   * คืนค่าเป็นรายการบรรทัด ถ้าไม่มีข้อมูลพอจะคืนรายการว่าง
+   */
+  function addrLines(mode) {
+    var m = st.member || {};
+    if (mode === "work") {
+      var l1 = [m.org_name].filter(Boolean).join("");
+      var l2 = [
+        m.work_addr_detail,
+        m.work_tambon ? "ตำบล" + m.work_tambon : "",
+        m.work_amphoe ? "อำเภอ" + m.work_amphoe : "",
+        m.work_province ? "จังหวัด" + m.work_province : "",
+        m.work_zip
+      ].filter(Boolean).join(" ");
+      if (!l1 && !l2) return [];
+      return [l1, l2].filter(Boolean);
+    }
+    if (mode === "home") {
+      var h = [
+        m.addr_detail,
+        m.addr_tambon ? "ตำบล" + m.addr_tambon : "",
+        m.addr_amphoe ? "อำเภอ" + m.addr_amphoe : "",
+        m.addr_province ? "จังหวัด" + m.addr_province : "",
+        m.addr_zip
+      ].filter(Boolean).join(" ");
+      return h ? [h] : [];
+    }
+    return [];
+  }
+
+  function chosenMode() {
+    var el = A.$('input[name="addrmode"]:checked');
+    return el ? el.value : "none";
+  }
+
+  function wireAddrChoice() {
+    var hasWork = addrLines("work").length > 0;
+    var hasHome = addrLines("home").length > 0;
+
+    A.$("#am-work").disabled = !hasWork;
+    A.$("#am-home").disabled = !hasHome;
+
+    // เลือกแบบที่มีข้อมูลให้เป็นค่าเริ่มต้น เรียงจากละเอียดที่สุด
+    if (hasWork) A.$("#am-work").checked = true;
+    else if (hasHome) A.$("#am-home").checked = true;
+    else A.$("#am-none").checked = true;
+
+    var why = [];
+    if (!hasWork) why.push("ที่ตั้งหน่วยงานยังไม่ครบ (ต้องมีชื่อหน่วยงานหรือที่อยู่หน่วยงาน)");
+    if (!hasHome) why.push("ที่อยู่ที่ติดต่อได้ยังไม่ครบ");
+    A.$("#am-hint").textContent = why.length
+      ? why.join(" · ") + " — แก้ไขได้ที่หน้าข้อมูลสมาชิก"
+      : "";
+
+    A.$$('input[name="addrmode"]').forEach(function (r) {
+      r.addEventListener("change", showPreview);
+    });
+    showPreview();
+  }
+
+  function showPreview() {
+    var lines = addrLines(chosenMode());
+    A.$("#am-preview").textContent = lines.length
+      ? "จะพิมพ์ว่า: " + lines.join(" / ")
+      : "เอกสารจะไม่มีบรรทัดที่อยู่";
+  }
+
+  function pdf(btn, copyLabel) {
+    A.busy(btn, true, "กำลังสร้าง PDF...");
+    setTimeout(function () {
+      try {
+        var doc = window.ReceiptPdf.build({
+          receipt: st.receipt,
+          member: st.member,
+          payment: st.payment || {},
+          application: st.application || {},
+          club: A.setting("club"),
+          copyLabel: copyLabel,
+          payerAddress: addrLines(chosenMode())
+        });
+        var safe = String(st.receipt.receipt_no).replace(/[^A-Za-z0-9_-]/g, "");
+        doc.save("ใบสำคัญรับเงิน-" + safe + (copyLabel ? "-สำเนา" : "") + ".pdf");
+        A.rpc("log_client_event", {
+          p_action: "print_receipt",
+          p_entity: "receipts",
+          p_entity_id: st.receipt.id,
+          p_note: (copyLabel ? "พิมพ์ฉบับสำเนา" : "พิมพ์ฉบับจริง") +
+                  " · ที่อยู่แบบ " + chosenMode()
+        }).catch(function () {});
+        A.toast("สร้างไฟล์ PDF เรียบร้อย", "ok");
+      } catch (e) {
+        A.toast("สร้าง PDF ไม่สำเร็จ: " + A.errMsg(e), "err");
+      }
+      A.busy(btn, false);
+    }, 40);
+  }
+})();
+</script>
+</body>
+</html>
