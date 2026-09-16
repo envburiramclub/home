@@ -31,7 +31,6 @@ jobs:
             --exclude '.git/' \
             --exclude '.github/' \
             --exclude '_site/' \
-            --exclude 'assets/img/signatures/' \
             ./ _site/
           touch _site/.nojekyll
           echo "ไฟล์ที่จะขึ้นเว็บ:"
