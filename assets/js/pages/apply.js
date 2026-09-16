@@ -195,9 +195,7 @@
       state.photoFile = f;
       photoWarn();
     });
-    wireImage("#signature", "#sign-thumb", CFG.LIMITS.signature, function (f) {
-      state.signFile = f;
-    });
+    wireSignatureFile();
 
     A.$("#draw-sign").addEventListener("click", openSignaturePad);
     A.$("#btn-save").addEventListener("click", function () { save(false); });
@@ -256,6 +254,72 @@
     if (later) later.hidden = !state.locked;
   }
 
+  /**
+   * รับไฟล์ลายเซ็นจากผู้ใช้ แล้วส่งให้ lib/signature-clean.js ทำความสะอาดก่อนเก็บ
+   *
+   * ต่างจาก wireImage ของรูปถ่ายสองเรื่อง
+   *   1. รับไฟล์ต้นฉบับใหญ่ได้ถึง LIMITS.signatureSource เพราะระบบย่อให้เอง
+   *      ผู้ใช้จึงถ่ายจากมือถือแล้วแนบได้เลย
+   *   2. ภาพที่เก็บคือภาพที่ลบพื้นหลังและตัดขอบแล้ว ไม่ใช่ไฟล์ที่ผู้ใช้เลือก
+   */
+  function wireSignatureFile() {
+    var input = A.$("#signature");
+    var thumb = A.$("#sign-thumb");
+
+    input.addEventListener("change", function () {
+      var f = this.files && this.files[0];
+      if (!f) return;
+      var self = this;
+
+      if (!/^image\//.test(f.type)) {
+        A.toast("กรุณาเลือกไฟล์รูปภาพ", "err");
+        self.value = "";
+        return;
+      }
+      if (f.size > CFG.LIMITS.signatureSource) {
+        A.toast("ไฟล์ใหญ่เกินกำหนด (" + A.fmt.fileSize(f.size) + " เกิน " +
+                A.fmt.fileSize(CFG.LIMITS.signatureSource) + ")", "err");
+        self.value = "";
+        return;
+      }
+
+      // ภาพถ่ายจากมือถือใช้เวลาประมวลผลสังเกตได้ จึงบอกให้รู้ว่าระบบกำลังทำงาน
+      A.toast("กำลังลบพื้นหลังและตัดขอบลายเซ็น...", "", 2000);
+      window.SignatureClean
+        .fromFile(f, { limit: CFG.LIMITS.signature })
+        .then(function (r) {
+          state.signFile = r.file;
+          thumb.style.backgroundImage = 'url("' + r.dataUrl + '")';
+          thumb.classList.add("has-img");
+          thumb.textContent = "";
+          A.toast(window.SignatureClean.describe(r.info), "ok", 6000);
+        })
+        .catch(function (e) {
+          /*
+           * ถ้าพลาดเพราะข้อจำกัดของเบราว์เซอร์ ยังใช้ไฟล์ต้นฉบับต่อได้ถ้าขนาดไม่เกิน
+           * แต่ต้องบอกให้รู้ว่าพื้นหลังจะไม่ถูกลบ ไม่ใช่ปล่อยให้เข้าใจว่าจัดการแล้ว
+           * ถ้าพลาดเพราะไฟล์ใช้ไม่ได้จริง ต้องไม่เก็บไฟล์นั้นไว้
+           */
+          if (e && e.canUseOriginal && f.size <= CFG.LIMITS.signature) {
+            state.signFile = f;
+            var fr = new FileReader();
+            fr.onload = function () {
+              thumb.style.backgroundImage = 'url("' + fr.result + '")';
+              thumb.classList.add("has-img");
+              thumb.textContent = "";
+            };
+            fr.readAsDataURL(f);
+            A.toast("ระบบลบพื้นหลังให้ไม่ได้ (" + A.errMsg(e) + ") " +
+                    "จะใช้ไฟล์ตามที่แนบมา หากพื้นหลังไม่โปร่งใสจะเห็นเป็นกรอบทึบบนบัตร",
+                    "warn", 10000);
+            return;
+          }
+          self.value = "";
+          A.toast(A.errMsg(e), "err", 10000);
+        });
+    });
+  }
+
   function wireImage(inputSel, thumbSel, limit, onPick) {
     var input = A.$(inputSel);
     var thumb = A.$(thumbSel);
@@ -306,17 +370,24 @@
         A.toast("ยังไม่มีลายเซ็น", "warn");
         return;
       }
-      var trimmed = trimCanvas(c);
-      trimmed.toBlob(function (blob) {
-        if (!blob) return;
-        var f = new File([blob], "signature.png", { type: "image/png" });
-        state.signFile = f;
-        var t = A.$("#sign-thumb");
-        t.style.backgroundImage = 'url("' + trimmed.toDataURL("image/png") + '")';
-        t.classList.add("has-img");
-        t.textContent = "";
-        A.toast("บันทึกลายเซ็นแล้ว จะอัปโหลดเมื่อกดบันทึกข้อมูล", "ok");
-      }, "image/png");
+      /*
+       * ลายเซ็นที่วาดในระบบโปร่งใสอยู่แล้ว ไม่มีพื้นหลังให้ลบ
+       * แต่ยังส่งผ่านตัวทำความสะอาดเพื่อตัดขอบและคุมขนาดด้วยกฎชุดเดียวกัน
+       * ลายเซ็นจากทุกทางจึงได้ผลลัพธ์แบบเดียวกัน
+       */
+      window.SignatureClean
+        .fromCanvas(c, { limit: CFG.LIMITS.signature })
+        .then(function (r) {
+          state.signFile = r.file;
+          var t = A.$("#sign-thumb");
+          t.style.backgroundImage = 'url("' + r.dataUrl + '")';
+          t.classList.add("has-img");
+          t.textContent = "";
+          A.toast("บันทึกลายเซ็นแล้ว จะอัปโหลดเมื่อกดบันทึกข้อมูล", "ok");
+        })
+        .catch(function (e) {
+          A.toast(A.errMsg(e), "err", 9000);
+        });
     });
 
     // ผูกการวาดหลัง modal ถูกใส่ใน DOM แล้ว
@@ -374,32 +445,6 @@
     }, 60);
   }
 
-  /** ตัดขอบว่างรอบลายเซ็นออก เพื่อให้วางบนบัตรได้พอดี */
-  function trimCanvas(c) {
-    var ctx = c.getContext("2d");
-    var d = ctx.getImageData(0, 0, c.width, c.height).data;
-    var minX = c.width, minY = c.height, maxX = -1, maxY = -1;
-    for (var y = 0; y < c.height; y++) {
-      for (var x = 0; x < c.width; x++) {
-        if (d[(y * c.width + x) * 4 + 3] > 12) {
-          if (x < minX) minX = x;
-          if (x > maxX) maxX = x;
-          if (y < minY) minY = y;
-          if (y > maxY) maxY = y;
-        }
-      }
-    }
-    if (maxX < 0) return c;
-    var pad = 8;
-    minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
-    maxX = Math.min(c.width - 1, maxX + pad); maxY = Math.min(c.height - 1, maxY + pad);
-    var out = document.createElement("canvas");
-    out.width = maxX - minX + 1;
-    out.height = maxY - minY + 1;
-    out.getContext("2d").drawImage(c, minX, minY, out.width, out.height, 0, 0, out.width, out.height);
-    return out;
-  }
-
   /* ---------- เติมข้อมูลเดิมลงฟอร์ม ---------- */
   function fillForm(m) {
     function set(id, v) {
@@ -455,13 +500,22 @@
       }).catch(function () {});
     }
     if (m.signature_path) {
-      A.storage.dataUrl(CFG.BUCKETS.signatures, m.signature_path).then(function (u) {
-        if (!u) return;
-        var t = A.$("#sign-thumb");
-        t.style.backgroundImage = 'url("' + u + '")';
-        t.classList.add("has-img");
-        t.textContent = "";
-      }).catch(function () {});
+      A.storage.dataUrl(CFG.BUCKETS.signatures, m.signature_path)
+        .then(function (u) {
+          /*
+           * ตัวอย่างต้องเป็นภาพชุดเดียวกับที่บัตรสมาชิกจะใช้ ซึ่งลบพื้นหลังแล้ว
+           * ไม่ใช่ไฟล์ดิบที่เก็บไว้ ไม่งั้นสิ่งที่ผู้สมัครเห็นจะไม่ตรงกับบัตรที่พิมพ์ออกมา
+           */
+          return window.SignatureClean ? window.SignatureClean.tidyForDocument(u) : u;
+        })
+        .then(function (u) {
+          if (!u) return;
+          var t = A.$("#sign-thumb");
+          t.style.backgroundImage = 'url("' + u + '")';
+          t.classList.add("has-img");
+          t.textContent = "";
+        })
+        .catch(function () {});
     }
 
     // เคยยินยอมไว้แล้วเมื่อบันทึกครั้งก่อน

@@ -312,8 +312,10 @@
                 <div>
                   <input type="file" id="signature" accept="image/png,image/jpeg,image/webp">
                   <div class="hint">
-                    เซ็นบนกระดาษขาวแล้วถ่ายรูป หรือใช้ไฟล์ PNG พื้นหลังโปร่งใส
-                    ขนาดไม่เกิน 1 MB (ไม่บังคับ แต่จะพิมพ์บนบัตรให้หากมี)
+                    เซ็นบนกระดาษขาวแล้วถ่ายรูปมาได้เลย ระบบลบพื้นหลังให้โปร่งใส
+                    ตัดขอบว่าง และย่อขนาดให้เองโดยอัตโนมัติ
+                    รับไฟล์ JPG/PNG/WebP ขนาดไม่เกิน 12 MB
+                    (ไม่บังคับ แต่จะพิมพ์บนบัตรให้หากมี)
                   </div>
                   <button type="button" class="btn btn-sm btn-ghost mt-1" id="draw-sign">
                     เซ็นด้วยเมาส์ / นิ้ว
@@ -392,6 +394,7 @@
 <script src="assets/js/app.js"></script>
 <script src="assets/js/data/buriram.js"></script>
 <script src="assets/js/lib/address.js"></script>
+<script src="assets/js/lib/signature-clean.js"></script>
 <script src="assets/js/pages/apply.js"></script>
 </body>
 </html>

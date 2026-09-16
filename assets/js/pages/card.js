@@ -80,16 +80,28 @@
      */
     var sign = A.setting("signatories");
 
+    /*
+     * ลายเซ็นทุกเส้นทางผ่าน lib/signature-clean.js ก่อนวางบนบัตร
+     * ไฟล์ที่อัปโหลดไว้ก่อนระบบมีการลบพื้นหลังจึงไม่ขึ้นเป็นกรอบขาวทับบัตร
+     * ไฟล์ที่สะอาดอยู่แล้วผ่านขั้นตอนนี้ได้ผลเท่าเดิม และถ้าทำไม่สำเร็จจะใช้ภาพเดิมต่อ
+     */
+    var tidy = function (u) {
+      return window.SignatureClean ? window.SignatureClean.tidyForDocument(u) : u;
+    };
+
     var jobs = [
       m.photo_path
         ? A.storage.dataUrl(CFG.BUCKETS.photos, m.photo_path).catch(function () { return null; })
         : Promise.resolve(null),
       m.signature_path
-        ? A.storage.dataUrl(CFG.BUCKETS.signatures, m.signature_path).catch(function () { return null; })
+        ? A.storage.dataUrl(CFG.BUCKETS.signatures, m.signature_path)
+            .then(tidy)
+            .catch(function () { return null; })
         : Promise.resolve(null),
       sign.president_signature_path
         ? A.storage
             .dataUrl(CFG.BUCKETS.clubSignatures, sign.president_signature_path)
+            .then(tidy)
             .catch(function () { return null; })
         : Promise.resolve(null)
     ];

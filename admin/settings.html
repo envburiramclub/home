@@ -67,7 +67,8 @@
         <p class="hint mt-0">
           ลายเซ็นที่แนบไว้จะถูกพิมพ์ลงบัตรสมาชิกและใบสำคัญรับเงินให้อัตโนมัติ
           หากยังไม่แนบ เอกสารจะเว้นเป็นเส้นว่างไว้ให้ลงนามด้วยปากกาบนเอกสารที่พิมพ์แล้ว
-          แนะนำไฟล์ PNG พื้นหลังโปร่งใส ขนาดไม่เกิน 1 MB
+          เซ็นบนกระดาษขาวแล้วถ่ายรูปมาได้เลย ระบบลบพื้นหลังให้โปร่งใส ตัดขอบว่าง
+          และย่อขนาดให้เองโดยอัตโนมัติ รับไฟล์ JPG/PNG/WebP ขนาดไม่เกิน 12 MB
         </p>
 
         <h3 class="mt-0">ประธานชมรม (พิมพ์ที่ด้านหน้าบัตรสมาชิก)</h3>
@@ -92,7 +93,7 @@
               <div>
                 <input type="file" id="pres_sig" accept="image/png,image/jpeg,image/webp">
                 <div class="hint">
-                  เซ็นบนกระดาษขาวแล้วถ่ายรูป หรือใช้ไฟล์ PNG พื้นหลังโปร่งใส ขนาดไม่เกิน 1 MB
+                  ระบบจะแสดงตัวอย่างหลังลบพื้นหลังและตัดขอบให้ดูก่อนบันทึก
                 </div>
                 <button type="button" class="btn btn-sm btn-ghost mt-1" id="pres_sig_clear" hidden>
                   เอาลายเซ็นออก
@@ -280,6 +281,7 @@
 <script src="../assets/vendor/supabase.js"></script>
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/app.js"></script>
+<script src="../assets/js/lib/signature-clean.js"></script>
 <script src="../assets/js/pages/admin-settings.js"></script>
 </body>
 </html>

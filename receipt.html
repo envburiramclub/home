@@ -89,6 +89,7 @@
 <script src="assets/vendor/sarabun-bold.js"></script>
 <script src="assets/js/config.js"></script>
 <script src="assets/js/app.js"></script>
+<script src="assets/js/lib/signature-clean.js"></script>
 <script src="assets/js/lib/club-stamp.js"></script>
 <script src="assets/js/lib/receipt-pdf.js"></script>
 <script>
@@ -142,8 +143,15 @@
 
       var sigPath = (A.setting("signatories") || {}).receipt_signature_path;
       if (sigPath) {
+        /*
+         * ผ่าน lib/signature-clean.js ก่อนวางในเอกสาร
+         * ไฟล์ที่อัปโหลดไว้ก่อนระบบมีการลบพื้นหลังจึงไม่ขึ้นเป็นกรอบขาวทับตราประทับ
+         */
         signerSig = A.storage
           .dataUrl(A.cfg.BUCKETS.clubSignatures, sigPath)
+          .then(function (u) {
+            return window.SignatureClean ? window.SignatureClean.tidyForDocument(u) : u;
+          })
           .catch(function () { return null; });
       }
 

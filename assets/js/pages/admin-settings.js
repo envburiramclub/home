@@ -164,6 +164,13 @@
     A.storage
       .dataUrl(CFG.BUCKETS.clubSignatures, sigs[kind].path)
       .then(function (u) {
+        /*
+         * ตัวอย่างต้องเป็นภาพชุดเดียวกับที่เอกสารจะใช้ ซึ่งผ่านการลบพื้นหลังแล้ว
+         * ไม่ใช่ไฟล์ดิบที่เก็บไว้ ไม่งั้นสิ่งที่ผู้ดูแลเห็นจะไม่ตรงกับบัตรที่พิมพ์ออกมา
+         */
+        return window.SignatureClean ? window.SignatureClean.tidyForDocument(u) : u;
+      })
+      .then(function (u) {
         paintSig(kind, u);
       })
       .catch(function () {
@@ -183,25 +190,58 @@
   function wireSig(kind) {
     var ui = SIG_UI[kind];
 
+    /*
+     * ไฟล์ที่เก็บคือไฟล์ที่ลบพื้นหลังและตัดขอบแล้ว ไม่ใช่ไฟล์ที่ผู้ดูแลเลือก
+     * จึงรับไฟล์ต้นฉบับใหญ่ได้ถึง LIMITS.signatureSource เพราะระบบย่อให้เอง
+     * ผู้ดูแลถ่ายลายเซ็นจากกระดาษด้วยมือถือแล้วแนบได้เลย
+     */
     A.$(ui.input).addEventListener("change", function () {
       var f = this.files && this.files[0];
       if (!f) return;
-      if (f.size > CFG.LIMITS.clubSignature) {
-        A.toast("ไฟล์ใหญ่เกินกำหนด (" + A.fmt.fileSize(f.size) + " เกิน " +
-                A.fmt.fileSize(CFG.LIMITS.clubSignature) + ")", "err");
-        this.value = "";
-        return;
-      }
+      var self = this;
+
       if (!/^image\//.test(f.type)) {
         A.toast("กรุณาเลือกไฟล์รูปภาพ", "err");
-        this.value = "";
+        self.value = "";
         return;
       }
-      sigs[kind].file = f;
-      sigs[kind].remove = false;
-      var fr = new FileReader();
-      fr.onload = function () { paintSig(kind, fr.result); };
-      fr.readAsDataURL(f);
+      if (f.size > CFG.LIMITS.signatureSource) {
+        A.toast("ไฟล์ใหญ่เกินกำหนด (" + A.fmt.fileSize(f.size) + " เกิน " +
+                A.fmt.fileSize(CFG.LIMITS.signatureSource) + ")", "err");
+        self.value = "";
+        return;
+      }
+
+      A.toast("กำลังลบพื้นหลังและตัดขอบลายเซ็น...", "", 2000);
+      window.SignatureClean
+        .fromFile(f, { limit: CFG.LIMITS.clubSignature })
+        .then(function (r) {
+          sigs[kind].file = r.file;
+          sigs[kind].remove = false;
+          paintSig(kind, r.dataUrl);
+          A.toast(window.SignatureClean.describe(r.info) +
+                  " จะอัปโหลดเมื่อกดบันทึกการตั้งค่า", "ok", 7000);
+        })
+        .catch(function (e) {
+          /*
+           * ข้อจำกัดของเบราว์เซอร์ยังใช้ไฟล์ต้นฉบับต่อได้ถ้าขนาดไม่เกิน
+           * แต่ต้องบอกว่าพื้นหลังจะไม่ถูกลบ ไม่ใช่ปล่อยให้เข้าใจว่าจัดการแล้ว
+           * ถ้าไฟล์ใช้ไม่ได้จริง (เช่น ไม่มีลายเซ็นในภาพ) ต้องไม่เก็บไว้
+           */
+          if (e && e.canUseOriginal && f.size <= CFG.LIMITS.clubSignature) {
+            sigs[kind].file = f;
+            sigs[kind].remove = false;
+            var fr = new FileReader();
+            fr.onload = function () { paintSig(kind, fr.result); };
+            fr.readAsDataURL(f);
+            A.toast("ระบบลบพื้นหลังให้ไม่ได้ (" + A.errMsg(e) + ") " +
+                    "จะใช้ไฟล์ตามที่แนบมา หากพื้นหลังไม่โปร่งใสจะเห็นเป็นกรอบทึบบนเอกสาร",
+                    "warn", 10000);
+            return;
+          }
+          self.value = "";
+          A.toast(A.errMsg(e), "err", 10000);
+        });
     });
 
     A.$(ui.clear).addEventListener("click", function () {

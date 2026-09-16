@@ -56,7 +56,14 @@
       photo: 3 * 1024 * 1024,
       signature: 1 * 1024 * 1024,
       slip: 5 * 1024 * 1024,
-      clubSignature: 1 * 1024 * 1024
+      clubSignature: 1 * 1024 * 1024,
+      /*
+       * ไฟล์ลายเซ็นต้นฉบับที่ยอมรับก่อนประมวลผล
+       * ใหญ่กว่า signature ได้ เพราะ lib/signature-clean.js ลบพื้นหลัง ตัดขอบ
+       * และย่อให้เหลือไม่เกิน signature ก่อนอัปโหลดอยู่แล้ว
+       * ผู้ใช้จึงแนบภาพถ่ายจากมือถือได้เลย ไม่ต้องย่อไฟล์เอง
+       */
+      signatureSource: 12 * 1024 * 1024
     }
   };
 })(typeof window !== "undefined" ? window : this);
