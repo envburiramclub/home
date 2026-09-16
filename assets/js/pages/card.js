@@ -73,12 +73,24 @@
       );
     }
 
+    /*
+     * ลายเซ็นประธานชมรมอยู่ในที่เก็บไฟล์ของชมรม ไม่ใช่ของสมาชิก
+     * ถ้ายังไม่ได้แนบไว้ในหน้าตั้งค่าระบบ บัตรจะพิมพ์เป็นเส้นให้ลงนามด้วยปากกาแทน
+     * จึงไม่ถือเป็นข้อผิดพลาดและไม่กันการออกบัตร
+     */
+    var sign = A.setting("signatories");
+
     var jobs = [
       m.photo_path
         ? A.storage.dataUrl(CFG.BUCKETS.photos, m.photo_path).catch(function () { return null; })
         : Promise.resolve(null),
       m.signature_path
         ? A.storage.dataUrl(CFG.BUCKETS.signatures, m.signature_path).catch(function () { return null; })
+        : Promise.resolve(null),
+      sign.president_signature_path
+        ? A.storage
+            .dataUrl(CFG.BUCKETS.clubSignatures, sign.president_signature_path)
+            .catch(function () { return null; })
         : Promise.resolve(null)
     ];
 
@@ -94,6 +106,11 @@
         verifyUrl: verifyUrl,
         photo: files[0],
         signature: files[1],
+        signatory: {
+          name: sign.president_name || "",
+          position: sign.president_position || "",
+          signature: files[2]
+        },
         qr: qrDataUrl
       };
     });
@@ -126,12 +143,27 @@
     A.$("#prev-back").innerHTML = backHtml();
   }
 
+  /*
+   * ภาพตัวอย่างด้านหน้าบัตร ใช้ผังเดียวกับ lib/card-pdf.js
+   * ทุกตำแหน่งคิดเป็นเปอร์เซ็นต์ของบัตรจริง 85.6 x 54 มม. เช่น
+   *   รูปถ่าย        ซ้าย 4.6 มม. = 5.4%   บน 14 มม. = 25.9%
+   *   ลายมือชื่อ     บน 37.2 มม. = 68.9%  (อยู่ใต้รูปถ่ายคอลัมน์เดียวกัน)
+   *   ช่องลงนามประธาน ซ้าย 47 มม. = 54.9%  บน 36.4 มม. = 67.4%
+   * ถ้าแก้ผังในไฟล์ PDF ต้องแก้ที่นี่ด้วย ไม่งั้นภาพตัวอย่างจะไม่ตรงกับไฟล์ที่ได้
+   */
   function frontHtml() {
     var m = data.member;
+    var sign = data.signatory || {};
     var nameEn = [m.first_name_en, m.last_name_en].filter(Boolean).join(" ");
+    var stamp = window.ClubStamp;
+
     return (
-      '<div style="position:relative;aspect-ratio:85.6/54;background:#fff;font-family:Sarabun,sans-serif">' +
-      '<div style="position:absolute;inset:0 0 auto 0;height:23%;background:linear-gradient(135deg,#0a6152,#12897d);' +
+      '<div style="position:relative;aspect-ratio:85.6/54;background:#fff;overflow:hidden;' +
+      'font-family:Sarabun,sans-serif">' +
+
+      // แถบหัวบัตร
+      '<div style="position:absolute;inset:0 0 auto 0;height:21.9%;' +
+      'background:linear-gradient(135deg,#0a6152,#12897d);' +
       'display:flex;align-items:center;gap:2%;padding:0 4%">' +
       '<img src="' + LOGO_PREV + '" alt="" ' +
       'style="width:9%;min-width:22px;aspect-ratio:1;object-fit:contain;' +
@@ -143,17 +175,38 @@
       '<div style="color:#cfeae4;font-size:clamp(5px,1.5vw,8px);line-height:1.2;white-space:nowrap;overflow:hidden">' +
       A.esc(data.club.name_en || "") + "</div>" +
       "</div></div>" +
-      '<div style="position:absolute;top:23%;left:0;right:0;bottom:14%;display:flex;gap:4%;padding:4% 5% 0">' +
-      '<div style="flex:0 0 22%;aspect-ratio:19/24.7;border:1px solid #dce6e3;border-radius:2px;' +
-      "display:flex;align-items:center;justify-content:center;text-align:center;" +
-      "background:" + (data.photo ? 'url(' + data.photo + ') center/cover' : "#d4f1ec") + ';">' +
+      '<div style="position:absolute;left:0;right:0;top:21.9%;height:1.1%;background:#a16207"></div>' +
+
+      // ตราประทับหมึกแดง วางก่อนข้อความทุกส่วนจึงอยู่ด้านหลัง
+      (stamp && stamp.preview
+        ? '<img class="pv-stamp" src="' + stamp.preview + '" alt="" aria-hidden="true" ' +
+          'style="position:absolute;left:69%;top:64%;width:11.5%;height:23.1%;' +
+          'object-fit:contain;pointer-events:none">'
+        : "") +
+
+      // รูปถ่าย
+      '<div class="pv-photo" style="position:absolute;left:5.4%;top:25.9%;width:20.4%;height:42%;' +
+      "border:1px solid #dce6e3;display:flex;align-items:center;justify-content:center;text-align:center;" +
+      "background:" + (data.photo ? "url(" + data.photo + ") center/cover" : "#d4f1ec") + '">' +
       // ช่องรูปว่างต้องบอกเหตุ ไม่ปล่อยเป็นสี่เหลี่ยมเปล่าให้เข้าใจผิดว่าบัตรพร้อมแล้ว
       (data.photo
         ? ""
         : '<span style="color:#4b6b63;font-size:clamp(3px,1vw,6px);line-height:1.25;padding:4%">' +
           "ยังไม่มี<br>รูปถ่าย</span>") +
       "</div>" +
-      '<div style="flex:1;min-width:0">' +
+
+      // ลายมือชื่อเจ้าของบัตร อยู่ใต้รูปถ่าย
+      '<div class="pv-memsig" style="position:absolute;left:5.4%;top:68.9%;width:20.4%;height:9.6%;' +
+      'display:flex;align-items:flex-end;justify-content:center">' +
+      (data.signature
+        ? '<img src="' + data.signature + '" alt="" style="max-width:100%;max-height:100%;object-fit:contain">'
+        : '<div style="width:100%;border-bottom:1px solid #dce6e3"></div>') +
+      "</div>" +
+      '<div style="position:absolute;left:3.5%;top:79.3%;width:24.2%;text-align:center;' +
+      'color:#6b7f79;font-size:clamp(3px,1vw,5.5px);line-height:1.2">ลายมือชื่อเจ้าของบัตร</div>' +
+
+      // คอลัมน์ขวา ข้อมูลสมาชิก
+      '<div style="position:absolute;left:29.6%;top:24.5%;width:65%;min-width:0">' +
       '<div style="font-size:clamp(4px,1.2vw,7px);color:#6b7f79">บัตรสมาชิก / MEMBER CARD</div>' +
       '<div style="font-weight:700;color:#14231f;line-height:1.15;font-size:clamp(9px,3vw,15px);' +
       'white-space:nowrap;overflow:hidden">' + A.esc(data.fullName) + "</div>" +
@@ -161,22 +214,36 @@
         ? '<div style="font-size:clamp(5px,1.4vw,8px);color:#3d4f4a;white-space:nowrap;overflow:hidden">' +
           A.esc(nameEn) + "</div>"
         : "") +
-      '<div style="font-size:clamp(6px,1.8vw,10px);color:#3d4f4a;margin-top:3%;line-height:1.2">' +
+      '<div style="font-size:clamp(6px,1.8vw,10px);color:#3d4f4a;margin-top:2%;line-height:1.2">' +
       A.esc(data.position) + "</div>" +
       '<div style="font-size:clamp(6px,1.8vw,10px);color:#064e42;line-height:1.2">' +
       A.esc(data.org) + "</div>" +
       "</div>" +
-      (data.signature
-        ? '<div style="position:absolute;right:5%;bottom:16%;width:26%;text-align:center">' +
-          '<img src="' + data.signature + '" alt="" style="width:100%;max-height:22px;object-fit:contain">' +
-          "</div>"
-        : "") +
+
+      // ช่องลงนามประธานชมรม
+      '<div class="pv-presign" style="position:absolute;left:54.9%;top:67.4%;width:39.7%;text-align:center;line-height:1.25">' +
+      // ช่องลายเซ็นสูง 4.6 มม. บนกล่องกว้าง 34 มม. ใช้ aspect-ratio จึงได้สัดส่วนตรงกับ PDF
+      '<div style="aspect-ratio:34/4.6;display:flex;align-items:flex-end;justify-content:center">' +
+      (sign.signature
+        ? '<img src="' + sign.signature + '" alt="" style="max-width:100%;max-height:100%;object-fit:contain">'
+        : '<div style="width:82%;margin:0 auto;border-bottom:1px solid #dce6e3"></div>') +
       "</div>" +
-      '<div style="position:absolute;left:0;right:0;bottom:0;height:14%;background:#064e42;color:#fff;' +
+      '<div style="color:#14231f;font-size:clamp(4px,1.25vw,7px);white-space:nowrap;overflow:hidden">(' +
+      A.esc(sign.name || "...................................") + ")</div>" +
+      (sign.position
+        ? '<div style="color:#3d4f4a;font-size:clamp(3px,1.05vw,6px);white-space:nowrap;overflow:hidden">' +
+          A.esc(sign.position) + "</div>"
+        : "") +
+      '<div style="color:#064e42;font-size:clamp(3px,1vw,5.5px);white-space:nowrap;overflow:hidden">' +
+      A.esc("ประธาน" + (data.club.name || "")) + "</div>" +
+      "</div>" +
+
+      // แถบท้ายบัตร
+      '<div style="position:absolute;left:0;right:0;bottom:0;height:13.3%;background:#064e42;color:#fff;' +
       'display:flex;align-items:center;justify-content:space-between;padding:0 5%;' +
       'font-size:clamp(5px,1.6vw,9px)">' +
       "<b>รหัสสมาชิก " + A.esc(data.member.member_code || "-") + "</b>" +
-      "<span style=\"color:#c7e6df\">มีอายุถึง " + A.esc(data.validToText) + "</span>" +
+      '<span style="color:#c7e6df">มีอายุถึง ' + A.esc(data.validToText) + "</span>" +
       "</div></div>"
     );
   }

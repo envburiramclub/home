@@ -41,9 +41,54 @@
   }
 
   /**
+   * วางภาพในกรอบโดยคงสัดส่วนเดิม ไม่ยืดไม่บีบ แล้วจัดกึ่งกลางกรอบ
+   *
+   * ลายเซ็นที่อัปโหลดเข้ามามีสัดส่วนไม่แน่นอน ถ้าสั่ง addImage ด้วยความกว้าง
+   * และความสูงตายตัว ลายเซ็นจะถูกยืดจนผิดรูปจากของจริง
+   *
+   * @returns {boolean} วาดสำเร็จหรือไม่
+   */
+  function drawFit(d, img, x, y, boxW, boxH) {
+    if (!img) return false;
+    var ratio = boxW / boxH;
+    try {
+      var pr = d.getImageProperties(img);
+      if (pr && pr.width && pr.height) ratio = pr.width / pr.height;
+    } catch (e) { /* อ่านขนาดไม่ได้ ใช้สัดส่วนของกรอบแทน */ }
+
+    var w = boxH * ratio;
+    var h = boxH;
+    if (w > boxW) { w = boxW; h = boxW / ratio; }
+    try {
+      d.addImage(img, x + (boxW - w) / 2, y + (boxH - h) / 2, w, h, undefined, "FAST");
+    } catch (e) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * ตราประทับหมึกแดงของชมรม วางเป็นพื้นหลังช่องลงนาม
+   *
+   * ต้องเรียกก่อนพิมพ์ลายเซ็นและข้อความของช่องลงนาม ตราจึงอยู่ด้านหลัง
+   * ภาพมาจาก lib/club-stamp.js ถ้าไม่ได้โหลดไฟล์นั้นมา เอกสารยังพิมพ์ได้ตามปกติ
+   * เพียงไม่มีตราประทับ เพราะตราประทับเป็นส่วนประดับ ไม่ใช่สาระของเอกสาร
+   */
+  function drawStamp(d, cx, cy, h) {
+    var S = global.ClubStamp;
+    if (!S || !S.dataUrl) return;
+    try {
+      var w = h * S.ratio;
+      d.addImage(S.dataUrl, "PNG", cx - w / 2, cy - h / 2, w, h, undefined, "FAST");
+    } catch (e) { /* ไม่มีตราประทับก็ยังเป็นใบสำคัญรับเงินที่ใช้ได้ */ }
+  }
+
+  /**
    * สร้างใบสำคัญรับเงิน
-   * @param {object} o { receipt, member, payment, application, club, copyLabel }
-   *                    ตราชมรมไม่ต้องส่งเข้ามา ไฟล์นี้ฝังไว้แล้ว
+   * @param {object} o { receipt, member, payment, application, club, copyLabel,
+   *                      payerAddress, signature }
+   *                    signature คือ data URL ลายเซ็นผู้ลงนาม ไม่ส่งมาก็ได้
+   *                    ตราชมรมและตราประทับไม่ต้องส่งเข้ามา ระบบฝังไว้แล้ว
    * @returns {jsPDF}
    */
   function build(o) {
@@ -63,10 +108,12 @@
     var R = W - 18;       // ขอบขวา
     var innerW = R - L;
 
-    /* ---------- กรอบเอกสาร ---------- */
-    d.setDrawColor(C.line[0], C.line[1], C.line[2]);
-    d.setLineWidth(0.4);
-    d.rect(L - 5, 14, innerW + 10, 175);
+    /*
+     * กรอบเอกสารวาดตอนท้ายสุด เพราะความสูงขึ้นกับเนื้อหาจริง
+     * (ที่อยู่ผู้ชำระเงินมีหรือไม่มีก็ได้ และยาวได้ถึง 3 บรรทัด)
+     * ถ้าตรึงความสูงไว้ตายตัว ช่องลงนามจะหลุดออกนอกกรอบเมื่อเนื้อหายาว
+     */
+    var frameTop = 14;
 
     /* ---------- หัวเอกสาร ---------- */
     d.setFillColor(C.brand[0], C.brand[1], C.brand[2]);
@@ -232,16 +279,29 @@
       txt(d, pair[1], xx + 34, y + row * 6, 9.5, "normal", C.ink);
     });
 
-    /* ---------- ลายมือชื่อ ---------- */
+    /* ---------- ช่องลงนามผู้รับเงิน ---------- */
+    /*
+     * ผังช่องลงนาม (นับจาก y ที่เป็นหัวบล็อก)
+     *   y -1 .. y +9    ช่องลายเซ็น ถ้าแนบไฟล์ไว้จะวางให้คงสัดส่วนเดิม
+     *   y +10           เส้นสำหรับลงนามด้วยปากกา คงไว้เสมอแม้มีลายเซ็นแล้ว
+     *   y +15           ชื่อ-นามสกุลผู้ลงนามในวงเล็บ
+     *   y +20           ตำแหน่งผู้ลงนาม
+     * ตราประทับหมึกแดงวาดก่อนทุกบรรทัด จึงอยู่ด้านหลังลายเซ็นและชื่อ
+     */
     y += 24;
     var sigW = 62;
     var sx = R - sigW;
+    var scx = sx + sigW / 2;
+
+    drawStamp(d, scx, y + 6, 26);
+    drawFit(d, o.signature, sx + 5, y - 1, sigW - 10, 10.4);
+
     d.setDrawColor(C.line[0], C.line[1], C.line[2]);
     d.setLineWidth(0.3);
     d.line(sx, y + 10, sx + sigW, y + 10);
     txt(d, "(" + (club.registrar || "........................................") + ")",
-        sx + sigW / 2, y + 15, 9.5, "normal", C.ink, "center");
-    txt(d, "ผู้รับเงิน / เจ้าหน้าที่การเงินชมรม", sx + sigW / 2, y + 20, 9, "normal", C.ink3, "center");
+        scx, y + 15, 9.5, "normal", C.ink, "center");
+    txt(d, "ผู้รับเงิน / เจ้าหน้าที่การเงินชมรม", scx, y + 20, 9, "normal", C.ink3, "center");
 
     txt(d, "หมายเหตุ", L, y + 2, 9, "bold", C.ink2);
     d.setFont("Sarabun", "normal");
@@ -256,10 +316,16 @@
       d.text(ln, L, y + 7 + i * 3.6);
     });
 
-    /* ---------- ท้ายกระดาษ ---------- */
+    /* ---------- กรอบเอกสารและท้ายกระดาษ ---------- */
+    // ปิดกรอบใต้บรรทัดตำแหน่งผู้ลงนาม และไม่สั้นกว่าความสูงเดิม 175 มม.
+    var frameBottom = Math.max(y + 27, frameTop + 175);
+    d.setDrawColor(C.line[0], C.line[1], C.line[2]);
+    d.setLineWidth(0.4);
+    d.rect(L - 5, frameTop, innerW + 10, frameBottom - frameTop);
+
     txt(d, "พิมพ์เมื่อ " + thaiDate(new Date()) + "  ·  " +
            (club.name || "ชมรมอนามัยสิ่งแวดล้อมจังหวัดบุรีรัมย์"),
-        W / 2, 185, 7.8, "normal", C.ink3, "center");
+        W / 2, frameBottom + 6, 7.8, "normal", C.ink3, "center");
 
     return d;
   }

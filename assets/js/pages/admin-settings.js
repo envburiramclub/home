@@ -4,8 +4,26 @@
 (function () {
   "use strict";
   var A = window.App;
+  var CFG = A.cfg;
 
   var myRole = null;
+
+  /*
+   * ลายเซ็นบนเอกสารเก็บเป็นไฟล์ใน bucket ของชมรม ไม่ได้เก็บเป็น base64 ในตาราง settings
+   * เพราะตาราง settings ถูกอ่านทุกหน้าเว็บ ถ้าฝังภาพไว้ทุกหน้าจะโหลดช้าโดยไม่จำเป็น
+   * ตารางจึงเก็บเพียงเส้นทางไฟล์ ส่วนตัวไฟล์อ่านได้เฉพาะบัญชีที่เข้าสู่ระบบแล้ว
+   * และเขียนได้เฉพาะผู้ดูแลที่มีสิทธิ์พื้นที่ตั้งค่าระบบ (ตรวจที่ฐานข้อมูล)
+   */
+  var SIG_UI = {
+    president: { input: "#pres_sig", thumb: "#pres_sig_thumb", clear: "#pres_sig_clear" },
+    receipt: { input: "#rcpt_sig", thumb: "#rcpt_sig_thumb", clear: "#rcpt_sig_clear" }
+  };
+
+  /* path คือไฟล์ที่บันทึกไว้แล้ว file คือไฟล์ที่เพิ่งเลือก remove คือสั่งเอาออก */
+  var sigs = {
+    president: { path: "", file: null, remove: false },
+    receipt: { path: "", file: null, remove: false }
+  };
 
   var ROLE_TH = {
     superadmin: "ผู้ดูแลระดับสูงสุด",
@@ -44,9 +62,11 @@
       A.$("#btn-save").addEventListener("click", save);
       A.$("#club_address").addEventListener("input", countAddr);
       countAddr();
+      wireSig("president");
+      wireSig("receipt");
 
       /*
-       * ผู้ดูแลระบบ (admin) ตั้งค่าได้ครบทั้งห้าหัวข้อ แต่เข้าหัวข้อ 6 ไม่ได้
+       * ผู้ดูแลระบบ (admin) ตั้งค่าได้ครบทั้งหกหัวข้อ แต่เข้าหัวข้อ 7 ไม่ได้
        * จึงซ่อนทั้งหัวข้อและไม่เรียก loadAdmins() ซึ่งจะถูก RLS ปฏิเสธอยู่แล้ว
        */
       if (myRole !== "superadmin") return null;
@@ -71,6 +91,7 @@
   function fill(s) {
     var club = s.club || {}, fees = s.fees || {}, mem = s.membership || {};
     var bank = s.bank || {}, legal = s.legal || {}, slip = s.slip_check || {};
+    var sign = s.signatories || {};
 
     function set(id, v) {
       var e = A.$("#" + id);
@@ -83,6 +104,11 @@
     set("club_phone", club.phone);
     set("club_email", club.email);
     set("club_registrar", club.registrar);
+
+    set("pres_name", sign.president_name);
+    set("pres_pos", sign.president_position);
+    setSigState("president", sign.president_signature_path);
+    setSigState("receipt", sign.receipt_signature_path);
 
     set("fee_new", fees.new);
     set("fee_renew", fees.renew);
@@ -103,6 +129,116 @@
     set("legal_terms", legal.terms_version);
     set("legal_dpo", legal.dpo_email);
     set("legal_retention", legal.retention_years);
+  }
+
+  /* ---------- ลายเซ็นบนเอกสาร ---------- */
+
+  function setSigState(kind, path) {
+    var st = sigs[kind];
+    st.path = path || "";
+    st.file = null;
+    st.remove = false;
+    A.$(SIG_UI[kind].input).value = "";
+    loadSig(kind);
+  }
+
+  function paintSig(kind, dataUrl) {
+    var t = A.$(SIG_UI[kind].thumb);
+    if (dataUrl) {
+      t.style.backgroundImage = 'url("' + dataUrl + '")';
+      t.classList.add("has-img");
+      t.textContent = "";
+    } else {
+      t.style.backgroundImage = "";
+      t.classList.remove("has-img");
+      t.textContent = "ยังไม่มีลายเซ็น";
+    }
+    A.$(SIG_UI[kind].clear).hidden = !dataUrl;
+  }
+
+  function loadSig(kind) {
+    if (!sigs[kind].path) {
+      paintSig(kind, null);
+      return;
+    }
+    A.storage
+      .dataUrl(CFG.BUCKETS.clubSignatures, sigs[kind].path)
+      .then(function (u) {
+        paintSig(kind, u);
+      })
+      .catch(function () {
+        /*
+         * มีเส้นทางไฟล์บันทึกไว้ แต่เปิดไฟล์ไม่ได้
+         * ต้องบอกตามจริง ไม่ใช่แสดงว่า "ยังไม่มีลายเซ็น"
+         * เพราะเอกสารจะยังพยายามใช้ไฟล์นี้ และผู้ดูแลต้องรู้ว่าต้องแนบใหม่
+         */
+        var t = A.$(SIG_UI[kind].thumb);
+        t.style.backgroundImage = "";
+        t.classList.remove("has-img");
+        t.textContent = "เปิดไฟล์ลายเซ็นที่บันทึกไว้ไม่ได้";
+        A.$(SIG_UI[kind].clear).hidden = false;
+      });
+  }
+
+  function wireSig(kind) {
+    var ui = SIG_UI[kind];
+
+    A.$(ui.input).addEventListener("change", function () {
+      var f = this.files && this.files[0];
+      if (!f) return;
+      if (f.size > CFG.LIMITS.clubSignature) {
+        A.toast("ไฟล์ใหญ่เกินกำหนด (" + A.fmt.fileSize(f.size) + " เกิน " +
+                A.fmt.fileSize(CFG.LIMITS.clubSignature) + ")", "err");
+        this.value = "";
+        return;
+      }
+      if (!/^image\//.test(f.type)) {
+        A.toast("กรุณาเลือกไฟล์รูปภาพ", "err");
+        this.value = "";
+        return;
+      }
+      sigs[kind].file = f;
+      sigs[kind].remove = false;
+      var fr = new FileReader();
+      fr.onload = function () { paintSig(kind, fr.result); };
+      fr.readAsDataURL(f);
+    });
+
+    A.$(ui.clear).addEventListener("click", function () {
+      sigs[kind].file = null;
+      sigs[kind].remove = true;
+      A.$(ui.input).value = "";
+      paintSig(kind, null);
+      A.toast("ลายเซ็นจะถูกเอาออกเมื่อกดบันทึกการตั้งค่า", "warn");
+    });
+  }
+
+  function uploadSig(kind, file) {
+    var ext = (file.name.match(/\.[a-z0-9]+$/i) || [".png"])[0].toLowerCase();
+    var path = "club/" + kind + "-" + Date.now() + ext;
+    return A.sb.storage
+      .from(CFG.BUCKETS.clubSignatures)
+      .upload(path, file, { cacheControl: "3600", upsert: false, contentType: file.type })
+      .then(function (res) {
+        if (res.error) throw res.error;
+        return path;
+      });
+  }
+
+  /*
+   * เตรียมเส้นทางไฟล์ลายเซ็นที่จะบันทึก
+   * คืนค่า { path, stale } โดย stale คือไฟล์เดิมที่เลิกใช้แล้วและควรลบทิ้ง
+   * ลบหลังบันทึกสำเร็จเท่านั้น ถ้าลบก่อนแล้วบันทึกพลาด ลายเซ็นเดิมจะหายไปฟรี ๆ
+   */
+  function prepareSig(kind) {
+    var st = sigs[kind];
+    if (st.file) {
+      return uploadSig(kind, st.file).then(function (path) {
+        return { path: path, stale: st.path };
+      });
+    }
+    if (st.remove) return Promise.resolve({ path: "", stale: st.path });
+    return Promise.resolve({ path: st.path, stale: "" });
   }
 
   function save() {
@@ -179,10 +315,24 @@
       }
     ];
 
+    var stale = [];
+
     A.busy(btn, true, "กำลังบันทึก...");
-    A.auth
-      .user()
-      .then(function (u) {
+    Promise.all([prepareSig("president"), prepareSig("receipt"), A.auth.user()])
+      .then(function (r) {
+        var pres = r[0], rcpt = r[1], u = r[2];
+
+        stale = [pres.stale, rcpt.stale].filter(Boolean);
+        payload.push({
+          key: "signatories",
+          value: {
+            president_name: A.$("#pres_name").value.trim(),
+            president_position: A.$("#pres_pos").value.trim(),
+            president_signature_path: pres.path,
+            receipt_signature_path: rcpt.path
+          }
+        });
+
         var rows = payload.map(function (p) {
           return {
             key: p.key,
@@ -199,6 +349,10 @@
         if (res.error) throw res.error;
       })
       .then(function () {
+        // ลบไฟล์ลายเซ็นเดิมที่เลิกใช้แล้ว ลบไม่สำเร็จก็ไม่ถือว่าบันทึกล้มเหลว
+        stale.forEach(function (path) {
+          A.storage.remove(CFG.BUCKETS.clubSignatures, path).catch(function () {});
+        });
         A.busy(btn, false);
         A.toast("บันทึกการตั้งค่าเรียบร้อย", "ok");
         return A.loadSettings(true).then(function (s) {

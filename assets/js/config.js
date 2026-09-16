@@ -17,7 +17,8 @@
     BUCKETS: {
       photos: "member-photos",
       signatures: "member-signatures",
-      slips: "payment-slips"
+      slips: "payment-slips",
+      clubSignatures: "club-signatures"
     },
 
     /* ค่าเริ่มต้น ใช้เมื่ออ่านตาราง settings ไม่สำเร็จ */
@@ -40,6 +41,12 @@
         promptpay_id: "",
         promptpay_type: "phone"
       },
+      signatories: {
+        president_name: "",
+        president_position: "",
+        president_signature_path: "",
+        receipt_signature_path: ""
+      },
       legal: { privacy_version: "1.0", terms_version: "1.0" },
       slip_check: { max_age_days: 30, require_qr: false, min_score_auto_flag: 60 }
     },
@@ -48,7 +55,8 @@
     LIMITS: {
       photo: 3 * 1024 * 1024,
       signature: 1 * 1024 * 1024,
-      slip: 5 * 1024 * 1024
+      slip: 5 * 1024 * 1024,
+      clubSignature: 1 * 1024 * 1024
     }
   };
 })(typeof window !== "undefined" ? window : this);

@@ -89,12 +89,23 @@
 <script src="assets/vendor/sarabun-bold.js"></script>
 <script src="assets/js/config.js"></script>
 <script src="assets/js/app.js"></script>
+<script src="assets/js/lib/club-stamp.js"></script>
 <script src="assets/js/lib/receipt-pdf.js"></script>
 <script>
 (function () {
   "use strict";
   var A = window.App;
   var st = null;
+
+  /*
+   * ลายเซ็นผู้ลงนามอยู่ในที่เก็บไฟล์ของชมรม ผู้ดูแลแนบไว้ที่หน้าตั้งค่าระบบ
+   * ถ้ายังไม่ได้แนบ หรือโหลดไม่สำเร็จ เอกสารจะพิมพ์เป็นเส้นให้ลงนามด้วยปากกาแทน
+   * จึงไม่กันการออกใบสำคัญรับเงิน
+   *
+   * เก็บเป็น Promise ไม่ใช่ค่าที่โหลดเสร็จแล้ว เพราะผู้ใช้กดดาวน์โหลดได้ทันที
+   * ที่หน้าแสดงผล ถ้าอ่านจากตัวแปรเฉย ๆ เอกสารที่กดเร็วจะไม่มีลายเซ็นโดยไม่มีใครรู้
+   */
+  var signerSig = Promise.resolve(null);
 
   A.renderHeader("member", "receipt.html");
   A.renderFooter();
@@ -128,6 +139,13 @@
       A.$("#r-ref").textContent = pay.ref_no || "-";
 
       A.$("#content").hidden = false;
+
+      var sigPath = (A.setting("signatories") || {}).receipt_signature_path;
+      if (sigPath) {
+        signerSig = A.storage
+          .dataUrl(A.cfg.BUCKETS.clubSignatures, sigPath)
+          .catch(function () { return null; });
+      }
 
       wireAddrChoice();
 
@@ -209,6 +227,11 @@
 
   function pdf(btn, copyLabel) {
     A.busy(btn, true, "กำลังสร้าง PDF...");
+    // รอลายเซ็นผู้ลงนามให้เสร็จก่อนเสมอ ไม่งั้นเอกสารอาจออกมาโดยไม่มีลายเซ็น
+    signerSig.then(function (sig) { build(btn, copyLabel, sig); });
+  }
+
+  function build(btn, copyLabel, sig) {
     setTimeout(function () {
       try {
         var doc = window.ReceiptPdf.build({
@@ -218,7 +241,8 @@
           application: st.application || {},
           club: A.setting("club"),
           copyLabel: copyLabel,
-          payerAddress: addrLines(chosenMode())
+          payerAddress: addrLines(chosenMode()),
+          signature: sig
         });
         var safe = String(st.receipt.receipt_no).replace(/[^A-Za-z0-9_-]/g, "");
         doc.save("ใบสำคัญรับเงิน-" + safe + (copyLabel ? "-สำเนา" : "") + ".pdf");

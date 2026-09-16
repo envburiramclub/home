@@ -125,35 +125,101 @@
     d.rect(x, y, w, h, "F");
   }
 
+  /**
+   * วางภาพในกรอบโดยคงสัดส่วนเดิม ไม่ยืดไม่บีบ แล้วจัดกึ่งกลางกรอบ
+   *
+   * ลายเซ็นที่ผู้ใช้อัปโหลดมามีสัดส่วนไม่แน่นอน ถ้าสั่ง addImage ด้วยความกว้าง
+   * และความสูงตายตัวภาพจะถูกยืด ลายเซ็นจึงผิดรูปจากของจริง
+   *
+   * @returns {object|null} กรอบจริงที่วาด { x, y, w, h } หรือ null เมื่อวาดไม่ได้
+   */
+  function drawFit(d, img, x, y, boxW, boxH) {
+    if (!img) return null;
+    var ratio = boxW / boxH;
+    try {
+      var p = d.getImageProperties(img);
+      if (p && p.width && p.height) ratio = p.width / p.height;
+    } catch (e) { /* อ่านขนาดไม่ได้ ใช้สัดส่วนของกรอบแทน */ }
+
+    var w = boxH * ratio;
+    var h = boxH;
+    if (w > boxW) { w = boxW; h = boxW / ratio; }
+
+    var rx = x + (boxW - w) / 2;
+    var ry = y + (boxH - h) / 2;
+    try {
+      d.addImage(img, rx, ry, w, h, undefined, "FAST");
+    } catch (e) {
+      return null;
+    }
+    return { x: rx, y: ry, w: w, h: h };
+  }
+
+  /**
+   * ตราประทับหมึกแดงของชมรม วางเป็นพื้นหลังช่องลงนาม
+   *
+   * ต้องเรียกก่อนพิมพ์ข้อความของช่องลงนามเสมอ ตราจึงอยู่ด้านหลังข้อความ
+   * ภาพมาจาก lib/club-stamp.js ถ้าไม่ได้โหลดไฟล์นั้นมา เอกสารยังพิมพ์ได้ตามปกติ
+   * เพียงไม่มีตราประทับ เพราะตราประทับเป็นส่วนประดับ ไม่ใช่สาระของเอกสาร
+   */
+  function drawStamp(d, cx, cy, h) {
+    var S = global.ClubStamp;
+    if (!S || !S.dataUrl) return;
+    try {
+      var w = h * S.ratio;
+      d.addImage(S.dataUrl, "PNG", cx - w / 2, cy - h / 2, w, h, undefined, "FAST");
+    } catch (e) { /* ไม่มีตราประทับก็ยังเป็นบัตรที่ใช้ได้ */ }
+  }
+
   /* ---------------- ด้านหน้าบัตร ---------------- */
+  /*
+   * ผังด้านหน้า (มิลลิเมตร นับจากมุมบนซ้ายของบัตร)
+   *    0.0 - 11.8   แถบหัวบัตร ตราชมรมและชื่อชมรม
+   *   14.0 - 36.7   คอลัมน์ซ้าย รูปถ่าย 17.5 x 22.7 (สัดส่วนเดิมของรูปติดบัตร)
+   *   37.2 - 42.4   ลายมือชื่อเจ้าของบัตร ย้ายมาอยู่ใต้รูปถ่ายในคอลัมน์เดียวกัน
+   *   16.6 - 34.7   คอลัมน์ขวา ชื่อ-นามสกุล ตำแหน่ง และหน่วยงาน (หน่วยงานยาวได้ 2 บรรทัด)
+   *   36.2 - 45.6   ช่องลงนามประธานชมรม พร้อมตราประทับหมึกแดงเป็นพื้นหลัง
+   *   46.8 - 54.0   แถบท้ายบัตร รหัสสมาชิกและวันหมดอายุ
+   */
   function drawFront(d, data, ox, oy) {
     ox = ox || 0;
     oy = oy || 0;
     var m = data.member;
     var club = data.club || {};
+    var sign = data.signatory || {};
+
+    var HEAD_H = 11.8;
+    var FOOT_H = 7.2;
+    var footTop = oy + CARD_H - FOOT_H;
 
     // พื้นบัตร
     rect(d, ox, oy, CARD_W, CARD_H, COLOR.white);
 
     // แถบหัวบัตร
-    rect(d, ox, oy, CARD_W, 12.4, COLOR.brand);
-    rect(d, ox, oy + 12.4, CARD_W, 0.7, COLOR.accent);
+    rect(d, ox, oy, CARD_W, HEAD_H, COLOR.brand);
+    rect(d, ox, oy + HEAD_H, CARD_W, 0.6, COLOR.accent);
 
     // ตราชมรม วาดจากภาพที่ฝังไว้ในไฟล์นี้ (ตัวแปร LOGO) จึงวาดได้เสมอ
-    drawMark(d, ox + 3.6, oy + 2.2, 8);
+    drawMark(d, ox + 3.6, oy + 1.9, 8);
 
     // ชื่อชมรม: ย่อให้พอดีความกว้างที่เหลือ
     fitText(d, club.name || "ชมรมอนามัยสิ่งแวดล้อมจังหวัดบุรีรัมย์", {
-      x: ox + 13.6, y: oy + 5.9, maxWidth: CARD_W - 13.6 - 3.5,
-      size: 7.6, minSize: 5, style: "bold", color: COLOR.white
+      x: ox + 13.6, y: oy + 5.6, maxWidth: CARD_W - 13.6 - 3.5,
+      size: 7.4, minSize: 5, style: "bold", color: COLOR.white
     });
     fitText(d, club.name_en || "Buriram Environmental Health Club", {
-      x: ox + 13.6, y: oy + 9.8, maxWidth: CARD_W - 13.6 - 3.5,
-      size: 4.6, minSize: 3.4, style: "normal", color: [214, 240, 235]
+      x: ox + 13.6, y: oy + 9.4, maxWidth: CARD_W - 13.6 - 3.5,
+      size: 4.5, minSize: 3.4, style: "normal", color: [214, 240, 235]
     });
 
-    // กรอบรูปถ่าย
-    var px = ox + 4.6, py = oy + 15.4, pw = 19, ph = 24.7;
+    /* ---- ช่องลงนามประธานชมรม: วาดตราประทับก่อนใคร เพื่อให้อยู่หลังข้อความทุกบรรทัด ---- */
+    var gw = 34;
+    var gx = ox + CARD_W - 4.6 - gw;
+    var gcx = gx + gw / 2;
+    drawStamp(d, gcx, oy + 40, 12.4);
+
+    /* ---- คอลัมน์ซ้าย: รูปถ่าย ---- */
+    var px = ox + 4.6, py = oy + 14, pw = 17.5, ph = 22.7;
     d.setDrawColor(COLOR.line[0], COLOR.line[1], COLOR.line[2]);
     d.setLineWidth(0.25);
     if (data.photo) {
@@ -166,74 +232,94 @@
       rect(d, px, py, pw, ph, COLOR.brandLight);
       fitText(d, "ไม่มีรูปถ่าย", {
         x: px + pw / 2, y: py + ph / 2, maxWidth: pw - 1,
-        size: 4.4, minSize: 3.2, align: "center", color: COLOR.ink3
+        size: 4.2, minSize: 3.2, align: "center", color: COLOR.ink3
       });
     }
     d.rect(px, py, pw, ph);
 
-    // คอลัมน์ข้อมูล
-    var tx = px + pw + 3.4;
+    /* ---- ลายมือชื่อเจ้าของบัตร: อยู่ใต้รูปถ่าย ---- */
+    var sy = py + ph + 0.5;
+    var sh = 5.2;
+    if (!drawFit(d, data.signature, px, sy, pw, sh)) {
+      // ยังไม่ได้แนบลายมือชื่อ เว้นเส้นไว้ให้เซ็นด้วยปากกาบนบัตรที่พิมพ์แล้ว
+      d.setDrawColor(COLOR.line[0], COLOR.line[1], COLOR.line[2]);
+      d.setLineWidth(0.2);
+      d.line(px, sy + sh, px + pw, sy + sh);
+    }
+    fitText(d, "ลายมือชื่อเจ้าของบัตร", {
+      x: px + pw / 2, y: sy + sh + 2.5, maxWidth: pw + 3.2,
+      size: 3.4, minSize: 2.6, align: "center", color: COLOR.ink3
+    });
+
+    /* ---- คอลัมน์ขวา: ข้อมูลสมาชิก ---- */
+    var tx = px + pw + 3.2;
     var tw = CARD_W - (tx - ox) - 4.6;
 
     fitText(d, "บัตรสมาชิก / MEMBER CARD", {
-      x: tx, y: oy + 17.6, maxWidth: tw, size: 4.6, minSize: 3.4, color: COLOR.ink3
+      x: tx, y: oy + 16.6, maxWidth: tw, size: 4.5, minSize: 3.4, color: COLOR.ink3
     });
 
     // ชื่อ-นามสกุล: ต้องพอดีบัตร ไม่ตัดข้อความ
-    var nameTh = data.fullName || "";
-    fitText(d, nameTh, {
-      x: tx, y: oy + 23, maxWidth: tw, size: 11.4, minSize: 6.4, style: "bold", color: COLOR.ink
+    fitText(d, data.fullName || "", {
+      x: tx, y: oy + 21.6, maxWidth: tw, size: 11.2, minSize: 6.4, style: "bold", color: COLOR.ink
     });
 
     // ชื่ออังกฤษ (ถ้ามี)
     var nameEn = [m.first_name_en, m.last_name_en].filter(Boolean).join(" ");
-    var yAfterName = oy + 23;
+    var yAfterName = oy + 21.6;
     if (nameEn) {
       fitText(d, nameEn, {
-        x: tx, y: oy + 26.9, maxWidth: tw, size: 5.4, minSize: 4, color: COLOR.ink2
+        x: tx, y: oy + 25.2, maxWidth: tw, size: 5.2, minSize: 4, color: COLOR.ink2
       });
-      yAfterName = oy + 26.9;
+      yAfterName = oy + 25.2;
     }
 
     // ตำแหน่ง: บรรทัดของตัวเอง
-    var yPos = yAfterName + (nameEn ? 4.6 : 5.4);
+    var yPos = yAfterName + (nameEn ? 3.8 : 4.6);
     if (data.position) {
       fitText(d, data.position, {
-        x: tx, y: yPos, maxWidth: tw, size: 6.8, minSize: 4.6, color: COLOR.ink2
+        x: tx, y: yPos, maxWidth: tw, size: 6.4, minSize: 4.4, color: COLOR.ink2
       });
     }
 
     // ชื่อหน่วยงาน: คนละบรรทัดกับตำแหน่ง ย่อให้พอดี ไม่เกิน 2 บรรทัด
-    var yOrg = yPos + 4.2;
+    var yOrg = yPos + 3.4;
     if (data.org) {
       fitText(d, data.org, {
         x: tx, y: yOrg, maxWidth: tw, maxLines: 2,
-        size: 6.8, minSize: 4.2, lineFactor: 1.05, color: COLOR.brandDark
+        size: 6.4, minSize: 4, lineFactor: 1.02, color: COLOR.brandDark
       });
     }
 
-    // ลายเซ็นเจ้าของบัตร
-    if (data.signature) {
-      try {
-        var sw = 20, sh = 7.4;
-        var sx = ox + CARD_W - 4.6 - sw;
-        var sy = oy + 40.6;
-        d.addImage(data.signature, sx, sy, sw, sh, undefined, "FAST");
-        fitText(d, "ลายมือชื่อเจ้าของบัตร", {
-          x: sx + sw / 2, y: sy + sh + 2.2, maxWidth: sw + 4,
-          size: 3.8, minSize: 3, align: "center", color: COLOR.ink3
-        });
-      } catch (e) { /* ไม่มีลายเซ็นก็ข้ามไป */ }
+    /* ---- ช่องลงนามประธานชมรม: ลายเซ็น ชื่อในวงเล็บ ตำแหน่ง และบรรทัดประธานชมรม ---- */
+    var gTop = oy + 36.2;
+    var gSigH = 4.2;
+    if (!drawFit(d, sign.signature, gx, gTop, gw, gSigH)) {
+      // ยังไม่ได้แนบลายเซ็นประธานชมรม เว้นเส้นไว้ให้ลงนามจริงบนบัตรที่พิมพ์แล้ว
+      d.setDrawColor(COLOR.line[0], COLOR.line[1], COLOR.line[2]);
+      d.setLineWidth(0.2);
+      d.line(gx + 3, gTop + gSigH, gx + gw - 3, gTop + gSigH);
     }
+    fitText(d, "(" + (sign.name || "...................................................") + ")", {
+      x: gcx, y: oy + 42.4, maxWidth: gw, size: 4.1, minSize: 3, align: "center", color: COLOR.ink
+    });
+    if (sign.position) {
+      fitText(d, sign.position, {
+        x: gcx, y: oy + 44.0, maxWidth: gw, size: 3.5, minSize: 2.6, align: "center", color: COLOR.ink2
+      });
+    }
+    fitText(d, "ประธาน" + (club.name || "ชมรมอนามัยสิ่งแวดล้อมจังหวัดบุรีรัมย์"), {
+      x: gcx, y: oy + 45.6, maxWidth: gw, size: 3.3, minSize: 2.4, align: "center", color: COLOR.brandDark
+    });
 
     // แถบท้ายบัตร: รหัสสมาชิกและวันหมดอายุ
-    rect(d, ox, oy + CARD_H - 7.6, CARD_W, 7.6, COLOR.brandDark);
+    rect(d, ox, footTop, CARD_W, FOOT_H, COLOR.brandDark);
     fitText(d, "รหัสสมาชิก " + (m.member_code || "-"), {
-      x: ox + 4.6, y: oy + CARD_H - 2.8, maxWidth: CARD_W * 0.52,
+      x: ox + 4.6, y: footTop + 4.7, maxWidth: CARD_W * 0.52,
       size: 6, minSize: 4.2, style: "bold", color: COLOR.white
     });
     fitText(d, "มีอายุถึง " + data.validToText, {
-      x: ox + CARD_W - 4.6, y: oy + CARD_H - 2.8, maxWidth: CARD_W * 0.44,
+      x: ox + CARD_W - 4.6, y: footTop + 4.7, maxWidth: CARD_W * 0.44,
       size: 5.6, minSize: 4, align: "right", color: [199, 230, 223]
     });
 
