@@ -26,6 +26,8 @@
         <p class="hint mt-0">
           ข้อมูลนี้แสดงบนบัตรสมาชิก ใบสำคัญรับเงิน และท้ายเว็บ
           กรุณาตรวจสอบที่อยู่และเบอร์โทรให้ถูกต้องก่อนเปิดใช้งาน
+          ส่วนชื่อและลายเซ็นของผู้ลงนามบนเอกสารอยู่ที่หน้า
+          <a href="signatories.html">ผู้ลงนามในเอกสาร</a>
         </p>
         <div class="grid">
           <div class="field col-6">
@@ -45,87 +47,20 @@
               (<span id="addr-count">0</span> ตัวอักษร)
             </div>
           </div>
-          <div class="field col-4">
+          <div class="field col-6">
             <label for="club_phone">โทรศัพท์</label>
             <input type="text" id="club_phone" maxlength="60">
           </div>
-          <div class="field col-4">
+          <div class="field col-6">
             <label for="club_email">อีเมล</label>
             <input type="email" id="club_email" maxlength="120">
           </div>
-          <div class="field col-4">
-            <label for="club_registrar">ชื่อผู้ลงนามในใบสำคัญรับเงิน</label>
-            <input type="text" id="club_registrar" maxlength="120"
-                   placeholder="เช่น นายสมชาย ใจดี (เหรัญญิก)">
-          </div>
         </div>
       </div>
 
-      <!-- ผู้ลงนามในเอกสาร -->
-      <div class="card">
-        <div class="section-title"><span class="num">2</span> ผู้ลงนามในเอกสาร</div>
-        <p class="hint mt-0">
-          ลายเซ็นที่แนบไว้จะถูกพิมพ์ลงบัตรสมาชิกและใบสำคัญรับเงินให้อัตโนมัติ
-          หากยังไม่แนบ เอกสารจะเว้นเป็นเส้นว่างไว้ให้ลงนามด้วยปากกาบนเอกสารที่พิมพ์แล้ว
-          เซ็นบนกระดาษขาวแล้วถ่ายรูปมาได้เลย ระบบลบพื้นหลังให้โปร่งใส ตัดขอบว่าง
-          และย่อขนาดให้เองโดยอัตโนมัติ รับไฟล์ JPG/PNG/WebP ขนาดไม่เกิน 12 MB
-        </p>
-
-        <h3 class="mt-0">ประธานชมรม (พิมพ์ที่ด้านหน้าบัตรสมาชิก)</h3>
-        <div class="grid">
-          <div class="field col-6">
-            <label for="pres_name">ชื่อ-นามสกุลประธานชมรม</label>
-            <input type="text" id="pres_name" maxlength="120" placeholder="เช่น นายสมชาย ใจดี">
-            <div class="hint">พิมพ์ในวงเล็บใต้ลายเซ็นบนบัตร</div>
-          </div>
-          <div class="field col-6">
-            <label for="pres_pos">ตำแหน่งประธานชมรม</label>
-            <input type="text" id="pres_pos" maxlength="120"
-                   placeholder="เช่น นักวิชาการสาธารณสุขเชี่ยวชาญ">
-            <div class="hint">
-              บรรทัดถัดไปบนบัตรระบบจะพิมพ์ว่า &ldquo;ประธาน&rdquo; ตามด้วยชื่อชมรมให้เอง
-            </div>
-          </div>
-          <div class="field col-12">
-            <label for="pres_sig">ลายเซ็นประธานชมรม</label>
-            <div class="upload">
-              <div class="thumb thumb-sign" id="pres_sig_thumb">ยังไม่มีลายเซ็น</div>
-              <div>
-                <input type="file" id="pres_sig" accept="image/png,image/jpeg,image/webp">
-                <div class="hint">
-                  ระบบจะแสดงตัวอย่างหลังลบพื้นหลังและตัดขอบให้ดูก่อนบันทึก
-                </div>
-                <button type="button" class="btn btn-sm btn-ghost mt-1" id="pres_sig_clear" hidden>
-                  เอาลายเซ็นออก
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <h3>ผู้ลงนามในใบสำคัญรับเงิน</h3>
-        <div class="grid">
-          <div class="field col-12">
-            <label for="rcpt_sig">ลายเซ็นผู้ลงนามในใบสำคัญรับเงิน</label>
-            <div class="upload">
-              <div class="thumb thumb-sign" id="rcpt_sig_thumb">ยังไม่มีลายเซ็น</div>
-              <div>
-                <input type="file" id="rcpt_sig" accept="image/png,image/jpeg,image/webp">
-                <div class="hint">
-                  ชื่อที่พิมพ์ในวงเล็บใต้ลายเซ็นคือ
-                  &ldquo;ชื่อผู้ลงนามในใบสำคัญรับเงิน&rdquo; ในหัวข้อ 1 ด้านบน
-                </div>
-                <button type="button" class="btn btn-sm btn-ghost mt-1" id="rcpt_sig_clear" hidden>
-                  เอาลายเซ็นออก
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
       <!-- ค่าธรรมเนียม -->
       <div class="card">
-        <div class="section-title"><span class="num">3</span> ค่าธรรมเนียมและอายุสมาชิก</div>
+        <div class="section-title"><span class="num">2</span> ค่าธรรมเนียมและอายุสมาชิก</div>
         <div class="grid">
           <div class="field col-3">
             <label for="fee_new">ค่าสมัครใหม่ (บาท)</label>
@@ -148,7 +83,7 @@
 
       <!-- บัญชีรับเงิน -->
       <div class="card">
-        <div class="section-title"><span class="num">4</span> บัญชีรับชำระค่าสมัคร</div>
+        <div class="section-title"><span class="num">3</span> บัญชีรับชำระค่าสมัคร</div>
         <div class="grid">
           <div class="field col-4">
             <label for="bank_name">ธนาคาร</label>
@@ -183,7 +118,7 @@
 
       <!-- เกณฑ์ตรวจสลิป -->
       <div class="card">
-        <div class="section-title"><span class="num">5</span> เกณฑ์ตรวจสอบสลิป</div>
+        <div class="section-title"><span class="num">4</span> เกณฑ์ตรวจสอบสลิป</div>
         <div class="grid">
           <div class="field col-4">
             <label for="slip_age">อายุสลิปสูงสุดที่รับ (วัน)</label>
@@ -199,7 +134,7 @@
 
       <!-- เอกสารกฎหมาย -->
       <div class="card">
-        <div class="section-title"><span class="num">6</span> เอกสารทางกฎหมาย</div>
+        <div class="section-title"><span class="num">5</span> เอกสารทางกฎหมาย</div>
         <div class="grid">
           <div class="field col-3">
             <label for="legal_privacy">เวอร์ชันนโยบายคุ้มครองข้อมูล</label>
@@ -237,7 +172,7 @@
         การกันจริงอยู่ที่นโยบาย RLS ของตาราง admins ซึ่งเปิดให้เฉพาะพื้นที่ admin_accounts
       -->
       <div class="card" id="sec-admins" hidden>
-        <div class="section-title"><span class="num">7</span> บัญชีผู้ดูแลระบบ</div>
+        <div class="section-title"><span class="num">6</span> บัญชีผู้ดูแลระบบ</div>
         <div id="admins-box"><div class="loading">กำลังโหลด...</div></div>
         <div id="grant-box" hidden>
           <h3 class="mt-2">เพิ่มสิทธิ์ผู้ดูแล</h3>
@@ -281,7 +216,6 @@
 <script src="../assets/vendor/supabase.js"></script>
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/app.js"></script>
-<script src="../assets/js/lib/signature-clean.js"></script>
 <script src="../assets/js/pages/admin-settings.js"></script>
 </body>
 </html>

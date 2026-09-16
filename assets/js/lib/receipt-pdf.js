@@ -86,8 +86,10 @@
   /**
    * สร้างใบสำคัญรับเงิน
    * @param {object} o { receipt, member, payment, application, club, copyLabel,
-   *                      payerAddress, signature }
+   *                      payerAddress, signature, signerName }
    *                    signature คือ data URL ลายเซ็นผู้ลงนาม ไม่ส่งมาก็ได้
+   *                    signerName คือชื่อผู้ลงนาม ถ้าไม่ส่งมาจะใช้ club.registrar
+   *                    ซึ่งเป็นที่เก็บเดิมก่อนย้ายไปอยู่กับลายเซ็นในค่า signatories
    *                    ตราชมรมและตราประทับไม่ต้องส่งเข้ามา ระบบฝังไว้แล้ว
    * @returns {jsPDF}
    */
@@ -299,7 +301,7 @@
     d.setDrawColor(C.line[0], C.line[1], C.line[2]);
     d.setLineWidth(0.3);
     d.line(sx, y + 10, sx + sigW, y + 10);
-    txt(d, "(" + (club.registrar || "........................................") + ")",
+    txt(d, "(" + (o.signerName || club.registrar || "........................................") + ")",
         scx, y + 15, 9.5, "normal", C.ink, "center");
     txt(d, "ผู้รับเงิน / เจ้าหน้าที่การเงินชมรม", scx, y + 20, 9, "normal", C.ink3, "center");
 

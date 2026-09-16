@@ -250,7 +250,8 @@
           club: A.setting("club"),
           copyLabel: copyLabel,
           payerAddress: addrLines(chosenMode()),
-          signature: sig
+          signature: sig,
+          signerName: (A.setting("signatories") || {}).receipt_name
         });
         var safe = String(st.receipt.receipt_no).replace(/[^A-Za-z0-9_-]/g, "");
         doc.save("ใบสำคัญรับเงิน-" + safe + (copyLabel ? "-สำเนา" : "") + ".pdf");

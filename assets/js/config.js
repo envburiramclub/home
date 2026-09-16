@@ -45,6 +45,7 @@
         president_name: "",
         president_position: "",
         president_signature_path: "",
+        receipt_name: "",
         receipt_signature_path: ""
       },
       legal: { privacy_version: "1.0", terms_version: "1.0" },
