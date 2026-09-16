@@ -1,9 +1,5 @@
 name: Deploy static site to GitHub Pages
 
-# ระบบนี้เป็น HTML/CSS/JavaScript ล้วน ไม่ต้องผ่าน Jekyll
-# จึงอัปโหลดไฟล์ขึ้น GitHub Pages ตรง ๆ เพื่อไม่ให้ Liquid ของ Jekyll
-# ไปแปลความหมายในไฟล์ JavaScript และไม่ให้ Jekyll ตัดโฟลเดอร์บางชื่อออก
-
 on:
   push:
     branches: ["main"]
@@ -31,16 +27,12 @@ jobs:
       - name: Stage site files
         run: |
           mkdir -p _site
-          # คัดลอกเฉพาะไฟล์ที่ต้องใช้ตอนรันเว็บ
-          # ไม่นำไฟล์ของ CI และไฟล์ลายเซ็นบุคคลขึ้นเว็บ
-          # ส่วนเอกสาร ไฟล์ SQL และไฟล์ทดสอบ อยู่คลัง envburiramclub/docs ไม่ได้อยู่ที่นี่
           rsync -a \
             --exclude '.git/' \
             --exclude '.github/' \
             --exclude '_site/' \
             --exclude 'assets/img/signatures/' \
             ./ _site/
-          # บอก GitHub Pages ว่าไม่ต้องประมวลผลด้วย Jekyll
           touch _site/.nojekyll
           echo "ไฟล์ที่จะขึ้นเว็บ:"
           find _site -type f | wc -l
