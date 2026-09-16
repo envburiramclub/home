@@ -40,6 +40,16 @@
     display: flex; align-items: center; justify-content: center; font-size: 1.15rem;
   }
   .feat-item b { display: block; }
+  .ann-list { display: grid; gap: 12px; }
+  .ann {
+    border: 1px solid var(--c-line); border-left: 4px solid var(--c-brand-500);
+    border-radius: var(--radius-sm); padding: 13px 15px; background: #fff;
+  }
+  .ann.pin { border-left-color: var(--c-warn-700); background: var(--c-warn-100); }
+  .ann-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+  .ann-head b { font-size: 1.02rem; }
+  .ann-meta { font-size: .82rem; color: var(--c-ink-3); margin-top: 2px; }
+  .ann-body { margin-top: 7px; white-space: pre-wrap; }
   @media (max-width: 700px) { .hero { padding: 34px 0 40px; } .hero h1 { font-size: 1.55rem; } }
 </style>
 </head>
@@ -84,6 +94,13 @@
         ขั้นแรกให้สร้างบัญชีผู้ใช้ด้วยอีเมลของท่าน ยืนยันอีเมล แล้วเข้าสู่ระบบ
         เพื่อกรอกใบสมัครสมาชิกและชำระค่าสมัคร
       </div>
+    </div>
+
+    <div class="card" id="ann-card" hidden>
+      <div class="card-head">
+        <h2>ประชาสัมพันธ์ / ประกาศกิจกรรม</h2>
+      </div>
+      <div class="ann-list" id="ann-list"></div>
     </div>
 
     <div class="card">
@@ -226,6 +243,36 @@
     A.$("#club-phone").textContent = club.phone || "0 4461 1562 ต่อ 127";
     A.$("#club-email").textContent = club.email || "envburiram@gmail.com";
   });
+
+  /*
+   * ประกาศประชาสัมพันธ์
+   *
+   * ฐานข้อมูลเปิดให้อ่านเฉพาะแถวที่เผยแพร่แล้ว (นโยบาย RLS ของตาราง announcements)
+   * หน้านี้จึงไม่ต้องกรองสถานะเองและกรองเองก็ไม่ได้ผลอะไรเพิ่ม
+   * ถ้าอ่านไม่สำเร็จให้ซ่อนทั้งกล่องไป ไม่ต้องขึ้นข้อความผิดพลาดให้คนทั่วไปเห็น
+   */
+  A.sb.from("announcements")
+    .select("id,title,body,event_date,pinned,published_at")
+    .order("pinned", { ascending: false })
+    .order("published_at", { ascending: false })
+    .limit(8)
+    .then(function (res) {
+      if (res.error || !res.data || !res.data.length) return;
+      A.$("#ann-list").innerHTML = res.data.map(function (a) {
+        var when = a.event_date
+          ? "กิจกรรมวันที่ " + A.fmt.thaiDate(a.event_date)
+          : (a.published_at ? "ประกาศเมื่อ " + A.fmt.thaiDate(a.published_at) : "");
+        return '<article class="ann' + (a.pinned ? " pin" : "") + '">' +
+          '<div class="ann-head"><b>' + A.esc(a.title) + "</b>" +
+          (a.pinned ? '<span class="badge badge-warn">ปักหมุด</span>' : "") +
+          "</div>" +
+          (when ? '<div class="ann-meta">' + A.esc(when) + "</div>" : "") +
+          '<div class="ann-body">' + A.esc(a.body) + "</div>" +
+          "</article>";
+      }).join("");
+      A.$("#ann-card").hidden = false;
+    })
+    .catch(function () {});
 
   A.$("#verify-form").addEventListener("submit", function (e) {
     e.preventDefault();

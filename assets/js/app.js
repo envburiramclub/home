@@ -608,6 +608,7 @@
         { href: "payments.html", label: "ตรวจสลิป", area: "payments" },
         { href: "members.html", label: "ทะเบียนสมาชิก", area: "members" },
         { href: "audit.html", label: "ประวัติการแก้ไข", area: "audit" },
+        { href: "announcements.html", label: "ประชาสัมพันธ์", area: "announcements" },
         { href: "settings.html", label: "ตั้งค่าระบบ", area: "settings" }
       ];
     }
